@@ -56,6 +56,15 @@ public class ProductsController : BaseController
         return Ok(result);
     }
 
+    [HttpGet("low-stock")]
+    [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLowStock([FromQuery] int threshold = 10)
+    {
+        var query = new GetLowStockProductsQuery { Threshold = threshold };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
