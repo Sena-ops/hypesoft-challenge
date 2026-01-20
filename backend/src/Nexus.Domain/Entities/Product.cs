@@ -16,10 +16,10 @@ public class Product : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Product name cannot be empty", nameof(name));
-        
+
         if (string.IsNullOrWhiteSpace(categoryId))
             throw new ArgumentException("Category ID cannot be empty", nameof(categoryId));
-        
+
         if (stockQuantity < 0)
             throw new ArgumentException("Stock quantity cannot be negative", nameof(stockQuantity));
 
@@ -34,7 +34,7 @@ public class Product : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Product name cannot be empty", nameof(name));
-        
+
         Name = name;
         MarkAsUpdated();
     }
@@ -55,37 +55,53 @@ public class Product : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(categoryId))
             throw new ArgumentException("Category ID cannot be empty", nameof(categoryId));
-        
+
         CategoryId = categoryId;
         MarkAsUpdated();
     }
 
+    /// <summary>
+    /// Updates the stock quantity directly.
+    /// </summary>
+    /// <param name="quantity">The new stock quantity.</param>
+    /// <exception cref="ArgumentException">Thrown when quantity is negative.</exception>
     public void UpdateStock(int quantity)
     {
         if (quantity < 0)
             throw new ArgumentException("Stock quantity cannot be negative", nameof(quantity));
-        
+
         StockQuantity = quantity;
         MarkAsUpdated();
     }
 
+    /// <summary>
+    /// Increases the stock quantity.
+    /// </summary>
+    /// <param name="quantity">Amount to add to stock.</param>
+    /// <exception cref="ArgumentException">Thrown when quantity is negative.</exception>
     public void IncreaseStock(int quantity)
     {
         if (quantity < 0)
             throw new ArgumentException("Quantity to add cannot be negative", nameof(quantity));
-        
+
         StockQuantity += quantity;
         MarkAsUpdated();
     }
 
+    /// <summary>
+    /// Decreases the stock quantity.
+    /// </summary>
+    /// <param name="quantity">Amount to remove from stock.</param>
+    /// <exception cref="ArgumentException">Thrown when quantity is negative.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when there is insufficient stock.</exception>
     public void DecreaseStock(int quantity)
     {
         if (quantity < 0)
             throw new ArgumentException("Quantity to remove cannot be negative", nameof(quantity));
-        
+
         if (StockQuantity < quantity)
             throw new InvalidOperationException("Insufficient stock");
-        
+
         StockQuantity -= quantity;
         MarkAsUpdated();
     }

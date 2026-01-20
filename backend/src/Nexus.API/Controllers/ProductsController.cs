@@ -56,6 +56,15 @@ public class ProductsController : BaseController
         return Ok(result);
     }
 
+    [HttpGet("low-stock")]
+    [ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLowStock([FromQuery] int threshold = 10)
+    {
+        var query = new GetLowStockProductsQuery { Threshold = threshold };
+        var result = await _mediator.Send(query);
+        return Ok(result);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -82,6 +91,28 @@ public class ProductsController : BaseController
         try
         {
             var command = new UpdateProductCommand { Id = id, Product = updateProductDto };
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPatch("{id}/stock")]
+    [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateStock(string id, [FromBody] UpdateProductStockDto stockDto)
+    {
+        try
+        {
+            var command = new UpdateStockCommand { Id = id, Quantity = stockDto.Quantity };
             var result = await _mediator.Send(command);
             return Ok(result);
         }
