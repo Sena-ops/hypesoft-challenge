@@ -18,11 +18,23 @@ public class ProductsController : BaseController
 
     [HttpGet]
     [ProducesResponseType(typeof(PagedResultDto<ProductDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? categoryId = null)
     {
-        var query = new GetAllProductsQuery { Page = page, PageSize = pageSize };
-        var result = await _mediator.Send(query);
-        return Ok(result);
+        if (!string.IsNullOrWhiteSpace(categoryId))
+        {
+            var query = new GetProductsByCategoryQuery { CategoryId = categoryId, Page = page, PageSize = pageSize };
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+        else
+        {
+            var query = new GetAllProductsQuery { Page = page, PageSize = pageSize };
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
     }
 
     [HttpGet("{id}")]
