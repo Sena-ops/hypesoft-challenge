@@ -1,3 +1,5 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Nexus.Application.Extensions;
 using Nexus.Infrastructure.Configurations;
 using Serilog;
@@ -32,12 +34,10 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
 
 // Add Health Checks
-builder.Services.AddHealthChecks()
-    .AddMongoDb(
-        builder.Configuration.GetConnectionString("MongoDB") ?? "",
-        name: "mongodb",
-        timeout: TimeSpan.FromSeconds(5)
-    );
+builder.Services.AddHealthChecks();
+    //.AddMongoDb(
+    //    builder.Configuration.GetConnectionString("MongoDB") ?? ""
+    //);
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -54,10 +54,10 @@ builder.Services.AddCors(options =>
 // Add Rate Limiting
 builder.Services.AddRateLimiter(options =>
 {
-    options.GlobalLimiter = Microsoft.AspNetCore.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(context =>
-        Microsoft.AspNetCore.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
-            factory: partition => new Microsoft.AspNetCore.RateLimiting.FixedWindowRateLimiterOptions
+            factory: partition => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
                 PermitLimit = 100,
