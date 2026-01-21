@@ -1,65 +1,17 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+import axios from "axios";
 
-export const api = {
-  async get<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+export const api = axios.create({
+  baseURL: "http://localhost:5000/api",
+});
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/auth/login";
     }
-
-    return response.json()
-  },
-
-  async post<T>(endpoint: string, data: unknown): Promise<T> {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`)
-    }
-
-    return response.json()
-  },
-
-  async put<T>(endpoint: string, data: unknown): Promise<T> {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`)
-    }
-
-    return response.json()
-  },
-
-  async delete<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`)
-    }
-
-    return response.json()
-  },
-}
+    return Promise.reject(error);
+  }
+);
