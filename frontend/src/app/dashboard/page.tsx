@@ -5,7 +5,10 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { LowStockList } from "@/components/dashboard/LowStockList";
-import { Package, DollarSign, AlertTriangle, BarChart3, Filter } from "lucide-react";
+import { TopProducts } from "@/components/dashboard/TopProducts";
+import { LatestTransactions } from "@/components/dashboard/LatestTransactions";
+import { CustomersCountries } from "@/components/dashboard/CustomersCountries";
+import { Package, DollarSign, AlertTriangle, Filter, Users } from "lucide-react";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/button";
 
@@ -36,16 +39,11 @@ export default function DashboardPage() {
     fetchStats();
   }, []);
 
-  // Mock chart data - in a real app this would come from the API
-  const chartData = [
-    { name: "Sun", value: 4000, value2: 2400 },
-    { name: "Mon", value: 3000, value2: 1398 },
-    { name: "Tue", value: 2000, value2: 9800 },
-    { name: "Wed", value: 2780, value2: 3908 },
-    { name: "Thu", value: 1890, value2: 4800 },
-    { name: "Fri", value: 2390, value2: 3800 },
-    { name: "Sat", value: 3490, value2: 4300 },
-  ];
+  const categoryData =
+    stats?.categoryStats?.map((category) => ({
+      name: category.categoryName,
+      count: category.productCount,
+    })) ?? [];
 
   return (
     <DashboardLayout>
@@ -69,25 +67,25 @@ export default function DashboardPage() {
           <>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <StatsCard
-                title="Total Sales"
-                value={`$${stats?.totalStockValue.toLocaleString() ?? "0"}`}
+                title="Valor total do estoque"
+                value={`R$ ${stats?.totalStockValue.toLocaleString("pt-BR") ?? "0"}`}
                 icon={DollarSign}
                 trend={{ value: 8, label: "from last month" }}
               />
               <StatsCard
-                title="Customers"
+                title="Clientes"
                 value="1,520"
-                icon={Package} // Placeholder for Customers
+                icon={Users}
                 trend={{ value: 20, label: "from last month" }}
               />
               <StatsCard
-                title="Total Products"
+                title="Total de produtos"
                 value={stats?.totalProducts ?? 0}
                 icon={Package}
                 trend={{ value: 12, label: "from last month" }}
               />
               <StatsCard
-                title="Low Stock Alert"
+                title="Estoque baixo"
                 value={stats?.lowStockCount ?? 0}
                 icon={AlertTriangle}
                 trend={{ value: -5, label: "from last month" }}
@@ -95,7 +93,16 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-              <SalesChart data={chartData} />
+              <SalesChart data={categoryData} />
+              <TopProducts />
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+              <LatestTransactions />
+              <CustomersCountries />
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
               <LowStockList products={stats?.lowStockProducts ?? []} />
             </div>
           </>

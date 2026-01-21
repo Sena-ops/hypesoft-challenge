@@ -25,7 +25,7 @@ interface LowStockListProps {
 
 export function LowStockList({ products }: LowStockListProps) {
   return (
-    <Card className="col-span-3">
+    <Card className="col-span-7">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base font-semibold">Low Stock Products</CardTitle>
         <Button variant="outline" size="sm" className="h-8 text-xs gap-1">

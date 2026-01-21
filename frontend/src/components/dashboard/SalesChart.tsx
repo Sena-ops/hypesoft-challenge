@@ -1,25 +1,25 @@
 "use client";
 
 import {
-  LineChart,
-  Line,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Filter } from "lucide-react";
 
-interface DataPoint {
+interface CategoryPoint {
   name: string;
-  value: number;
+  count: number;
 }
 
 interface SalesChartProps {
-  data: DataPoint[];
+  data: CategoryPoint[];
 }
 
 export function SalesChart({ data }: SalesChartProps) {
@@ -27,11 +27,12 @@ export function SalesChart({ data }: SalesChartProps) {
     <Card className="col-span-4">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-base font-semibold">Sales Insight</CardTitle>
-          <div className="text-2xl font-bold mt-1">$34,892.00</div>
-          <div className="text-sm text-emerald-500 font-medium">
-            +32% <span className="text-muted-foreground font-normal">from last month</span>
-          </div>
+          <CardTitle className="text-base font-semibold">
+            Produtos por categoria
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Distribuicao de itens cadastrados por categoria
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="h-8 text-xs">
@@ -46,54 +47,39 @@ export function SalesChart({ data }: SalesChartProps) {
       <CardContent className="pl-0">
         <div className="h-[300px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <BarChart
               data={data}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
+              margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis 
-                dataKey="name" 
+              <XAxis
+                dataKey="name"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-                dy={10}
+                tick={{ fill: "#6B7280", fontSize: 12 }}
+                dy={8}
               />
-              <YAxis 
+              <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#6B7280', fontSize: 12 }}
-                dx={-10}
+                tick={{ fill: "#6B7280", fontSize: 12 }}
+                dx={-8}
+                allowDecimals={false}
               />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#fff'
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1F2937",
+                  border: "none",
+                  borderRadius: "8px",
+                  color: "#fff",
                 }}
               />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#6366f1"
-                strokeWidth={3}
-                dot={{ r: 4, fill: "#6366f1", strokeWidth: 2, stroke: "#fff" }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
+              <Bar
+                dataKey="count"
+                radius={[8, 8, 0, 0]}
+                fill="#7c3aed"
               />
-              <Line
-                type="monotone"
-                dataKey="value2"
-                stroke="#ec4899"
-                strokeWidth={3}
-                dot={{ r: 4, fill: "#ec4899", strokeWidth: 2, stroke: "#fff" }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-              />
-            </LineChart>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
