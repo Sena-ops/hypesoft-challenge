@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexus.Application.Commands.Products;
 using Nexus.Application.DTOs.Common;
@@ -7,6 +8,12 @@ using Nexus.Application.Queries.Products;
 
 namespace Nexus.API.Controllers;
 
+/// <summary>
+/// Controller para gerenciamento de produtos.
+/// Requer autenticação para todos os endpoints.
+/// Operações de escrita (POST, PUT, PATCH, DELETE) requerem role Manager ou Admin.
+/// </summary>
+[Authorize]
 public class ProductsController : BaseController
 {
     private readonly IMediator _mediator;
@@ -66,8 +73,11 @@ public class ProductsController : BaseController
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireManager")]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Create([FromBody] CreateProductDto createProductDto)
     {
         try
@@ -83,8 +93,11 @@ public class ProductsController : BaseController
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "RequireManager")]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(string id, [FromBody] UpdateProductDto updateProductDto)
     {
@@ -105,8 +118,11 @@ public class ProductsController : BaseController
     }
 
     [HttpPatch("{id}/stock")]
+    [Authorize(Policy = "RequireManager")]
     [ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateStock(string id, [FromBody] UpdateProductStockDto stockDto)
     {
@@ -127,7 +143,10 @@ public class ProductsController : BaseController
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "RequireAdmin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(string id)
     {

@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Nexus.API.Extensions;
+using Nexus.API.Middlewares;
 using Nexus.Application.Extensions;
 using Nexus.Infrastructure.Configurations;
 using Serilog;
@@ -80,6 +81,9 @@ app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Middleware de logging de autenticação/autorização
+app.UseAuthenticationLogging();
 
 app.MapControllers();
 
