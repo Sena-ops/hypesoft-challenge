@@ -94,11 +94,21 @@ public static class AuthenticationExtensions
             options.AddPolicy("RequireAdmin", policy =>
                 policy.RequireRole("admin", "Admin"));
             
-            options.AddPolicy("RequireManager", policy =>
-                policy.RequireRole("manager", "Manager", "admin", "Admin"));
+            // Editor pode criar e editar (compatível com manager)
+            options.AddPolicy("RequireEditor", policy =>
+                policy.RequireRole("editor", "Editor", "manager", "Manager", "admin", "Admin"));
             
+            // Manager (compatibilidade - mesmo que editor)
+            options.AddPolicy("RequireManager", policy =>
+                policy.RequireRole("editor", "Editor", "manager", "Manager", "admin", "Admin"));
+            
+            // Leitor pode apenas visualizar (compatível com user)
+            options.AddPolicy("RequireLeitor", policy =>
+                policy.RequireRole("leitor", "Leitor", "editor", "Editor", "manager", "Manager", "admin", "Admin", "user", "User"));
+            
+            // User (compatibilidade - mesmo que leitor)
             options.AddPolicy("RequireUser", policy =>
-                policy.RequireRole("user", "User", "manager", "Manager", "admin", "Admin"));
+                policy.RequireRole("leitor", "Leitor", "user", "User", "editor", "Editor", "manager", "Manager", "admin", "Admin"));
         });
 
         return services;

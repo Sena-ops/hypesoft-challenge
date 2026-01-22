@@ -52,15 +52,15 @@ export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProp
     return (
       <div className="flex h-screen bg-gray-50/50 dark:bg-gray-900/50">
         <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden md:ml-0">
           <Header />
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className="flex-1 overflow-y-auto p-4 sm:p-6">
             <div className="flex flex-col items-center justify-center h-full gap-4">
               <div className="rounded-full bg-destructive/10 p-4">
                 <RefreshCw className="h-8 w-8 text-destructive" />
               </div>
               <h2 className="text-xl font-semibold">Acesso Negado</h2>
-              <p className="text-muted-foreground text-center max-w-md">
+              <p className="text-muted-foreground text-center max-w-md px-4">
                 Você não tem permissão para acessar esta página.
                 Entre em contato com o administrador do sistema.
               </p>
@@ -74,9 +74,9 @@ export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProp
   return (
     <div className="flex h-screen bg-gray-50/50 dark:bg-gray-900/50">
       <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden md:ml-0">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {children}
         </main>
       </div>

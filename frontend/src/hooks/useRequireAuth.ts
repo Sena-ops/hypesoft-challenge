@@ -178,23 +178,24 @@ export function usePermissions() {
   }
 
   const isAdmin = hasRole("admin");
-  const isManager = hasAnyRole(["admin", "manager"]);
+  const isEditor = hasAnyRole(["admin", "editor", "manager"]);
+  const isLeitor = hasAnyRole(["admin", "editor", "leitor", "manager", "user"]);
 
   return {
     /**
-     * Pode visualizar recursos (qualquer usuário autenticado)
+     * Pode visualizar recursos (qualquer usuário autenticado - leitor, editor ou admin)
      */
-    canView: true,
+    canView: isLeitor,
     
     /**
-     * Pode criar recursos (manager ou admin)
+     * Pode criar recursos (editor ou admin)
      */
-    canCreate: isManager,
+    canCreate: isEditor,
     
     /**
-     * Pode editar recursos (manager ou admin)
+     * Pode editar recursos (editor ou admin)
      */
-    canEdit: isManager,
+    canEdit: isEditor,
     
     /**
      * Pode excluir recursos (apenas admin)
@@ -207,8 +208,8 @@ export function usePermissions() {
     isAdmin,
     
     /**
-     * É manager ou admin
+     * É editor, manager ou admin
      */
-    isManager,
+    isManager: isEditor,
   };
 }

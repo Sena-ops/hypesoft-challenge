@@ -48,14 +48,14 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">
               Visão geral do sistema de gestão de produtos
             </p>
           </div>
-          <Button variant="outline" className="gap-2" onClick={fetchStats} disabled={loading}>
+          <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={fetchStats} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>

@@ -31,22 +31,22 @@ export function Header() {
   const roleBadge = getRoleBadge();
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-card px-6">
-      <div className="flex items-center gap-4 w-96">
-        <div className="relative w-full">
+    <header className="flex h-16 items-center justify-between border-b bg-card px-4 sm:px-6 md:pl-6">
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 max-w-md">
+        <div className="relative w-full hidden sm:block">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Buscar"
-            className="w-full bg-background pl-9 md:w-[300px] lg:w-[300px]"
+            className="w-full bg-background pl-9"
           />
           <div className="absolute right-2.5 top-2.5 flex items-center gap-1">
-             <span className="text-xs text-muted-foreground border rounded px-1">⌘ S</span>
+             <span className="text-xs text-muted-foreground border rounded px-1 hidden md:inline">⌘ S</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-1 sm:gap-2 md:gap-4">
         <Button
           variant="ghost"
           size="icon"

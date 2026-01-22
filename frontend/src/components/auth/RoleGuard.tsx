@@ -90,7 +90,24 @@ export function AdminOnly({
 }
 
 /**
- * Componente que mostra conteúdo para managers e admins
+ * Componente que mostra conteúdo para editors e admins (pode criar/editar)
+ */
+export function EditorOnly({
+  children,
+  fallback,
+}: {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
+  return (
+    <RoleGuard roles={["admin", "editor", "manager"]} fallback={fallback}>
+      {children}
+    </RoleGuard>
+  );
+}
+
+/**
+ * Componente que mostra conteúdo para managers e admins (compatibilidade)
  */
 export function ManagerOnly({
   children,
@@ -100,7 +117,24 @@ export function ManagerOnly({
   fallback?: React.ReactNode;
 }) {
   return (
-    <RoleGuard roles={["admin", "manager"]} fallback={fallback}>
+    <RoleGuard roles={["admin", "editor", "manager"]} fallback={fallback}>
+      {children}
+    </RoleGuard>
+  );
+}
+
+/**
+ * Componente que mostra conteúdo para leitores, editors e admins (pode visualizar)
+ */
+export function LeitorOnly({
+  children,
+  fallback,
+}: {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
+  return (
+    <RoleGuard roles={["admin", "editor", "leitor", "manager", "user"]} fallback={fallback}>
       {children}
     </RoleGuard>
   );

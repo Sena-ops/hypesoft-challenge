@@ -40,11 +40,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks";
 import { useKeycloak } from "@/stores/KeycloakContext";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function ProductsPage() {
   const router = useRouter();
   const permissions = usePermissions();
   const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,9 +110,19 @@ export default function ProductsPage() {
   const handleDelete = async (id: string) => {
     try {
       await api.delete(`/products/${id}`);
+      toast({
+        variant: "success",
+        title: "Produto excluído!",
+        description: "O produto foi excluído com sucesso.",
+      });
       fetchProducts();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao excluir produto:", error);
+      toast({
+        variant: "error",
+        title: "Erro ao excluir produto",
+        description: error.response?.data?.error || "Ocorreu um erro ao excluir o produto. Tente novamente.",
+      });
     }
   };
 
@@ -162,7 +174,7 @@ export default function ProductsPage() {
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Produtos</h1>
             <p className="text-muted-foreground">
@@ -185,13 +197,13 @@ export default function ProductsPage() {
               <CardTitle className="text-base font-semibold">
                 Lista de Produtos ({totalCount})
               </CardTitle>
-              <div className="flex flex-col gap-2 md:flex-row md:items-center">
-                <div className="relative">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1 sm:flex-initial">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
                     placeholder="Buscar por nome..."
-                    className="pl-9 w-full md:w-[250px]"
+                    className="pl-9 w-full sm:w-[250px]"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && searchProducts()}
@@ -204,7 +216,7 @@ export default function ProductsPage() {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Categoria" />
                   </SelectTrigger>
                   <SelectContent>
@@ -225,6 +237,7 @@ export default function ProductsPage() {
                     setPage(1);
                     fetchProducts();
                   }}
+                  className="sm:w-auto"
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
@@ -251,34 +264,44 @@ export default function ProductsPage() {
               </div>
             ) : (
               <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Categoria</TableHead>
-                      <TableHead>Preço</TableHead>
-                      <TableHead>Estoque</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {products.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{product.name}</p>
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                              {product.description}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>{getCategoryName(product.categoryId)}</TableCell>
-                        <TableCell>
-                          R$ {product.price?.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell>{getStockBadge(product.stockQuantity)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead className="hidden sm:table-cell">Categoria</TableHead>
+                        <TableHead className="hidden md:table-cell">Preço</TableHead>
+                        <TableHead className="hidden lg:table-cell">Estoque</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {products.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <p className="font-medium">{product.name}</p>
+                              <p className="text-xs text-muted-foreground sm:hidden line-clamp-1">
+                                {product.description}
+                              </p>
+                              <div className="flex flex-wrap gap-2 sm:hidden">
+                                <span className="text-xs text-muted-foreground">
+                                  {getCategoryName(product.categoryId)}
+                                </span>
+                                <span className="text-xs font-medium">
+                                  R$ {product.price?.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                </span>
+                                {getStockBadge(product.stockQuantity)}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden sm:table-cell">{getCategoryName(product.categoryId)}</TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            R$ {product.price?.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">{getStockBadge(product.stockQuantity)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
                             {permissions.canEdit && (
                               <Button
                                 variant="ghost"
@@ -315,15 +338,16 @@ export default function ProductsPage() {
                                 </AlertDialogContent>
                               </AlertDialog>
                             )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
 
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4">
                     <p className="text-sm text-muted-foreground">
                       Página {page} de {totalPages}
                     </p>
@@ -335,7 +359,7 @@ export default function ProductsPage() {
                         disabled={page === 1}
                       >
                         <ChevronLeft className="h-4 w-4" />
-                        Anterior
+                        <span className="hidden sm:inline">Anterior</span>
                       </Button>
                       <Button
                         variant="outline"
@@ -343,7 +367,7 @@ export default function ProductsPage() {
                         onClick={() => setPage(page + 1)}
                         disabled={page === totalPages}
                       >
-                        Próximo
+                        <span className="hidden sm:inline">Próximo</span>
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
