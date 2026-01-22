@@ -1,21 +1,17 @@
 "use client";
 
-import { useAuth } from "@/stores/AuthContext";
+import { useKeycloak } from "@/stores/KeycloakContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { RefreshCw } from "lucide-react";
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+  requiredRoles?: string[];
+}
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/auth/login");
-    }
-  }, [isLoading, isAuthenticated, router]);
+export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProps) {
+  const { isAuthenticated, isLoading, login, hasAnyRole, user } = useKeycloak();
 
   // Mostra loading enquanto verifica autenticação
   if (isLoading) {
@@ -29,9 +25,44 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Se não está autenticado, não renderiza nada (vai redirecionar)
+  // Se não está autenticado, redireciona para login
   if (!isAuthenticated) {
-    return null;
+    // Usa setTimeout para evitar problemas com SSR
+    if (typeof window !== "undefined") {
+      login();
+    }
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50/50 dark:bg-gray-900/50">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Redirecionando para login...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Verifica roles se necessário
+  if (requiredRoles && requiredRoles.length > 0 && !hasAnyRole(requiredRoles)) {
+    return (
+      <div className="flex h-screen bg-gray-50/50 dark:bg-gray-900/50">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-y-auto p-6">
+            <div className="flex flex-col items-center justify-center h-full gap-4">
+              <div className="rounded-full bg-destructive/10 p-4">
+                <RefreshCw className="h-8 w-8 text-destructive" />
+              </div>
+              <h2 className="text-xl font-semibold">Acesso Negado</h2>
+              <p className="text-muted-foreground text-center max-w-md">
+                Você não tem permissão para acessar esta página.
+                Entre em contato com o administrador do sistema.
+              </p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
   }
 
   return (
