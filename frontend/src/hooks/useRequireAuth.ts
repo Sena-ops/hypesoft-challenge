@@ -198,9 +198,9 @@ export function usePermissions() {
     canEdit: isEditor,
     
     /**
-     * Pode excluir recursos (apenas admin)
+     * Pode excluir recursos (editor ou admin)
      */
-    canDelete: isAdmin,
+    canDelete: isEditor,
     
     /**
      * É administrador

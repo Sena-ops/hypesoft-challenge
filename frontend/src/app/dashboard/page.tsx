@@ -8,6 +8,7 @@ import { SalesChart } from "@/components/charts";
 import { Package, DollarSign, AlertTriangle, Tags, RefreshCw } from "lucide-react";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/button";
+import { useKeycloak } from "@/stores/KeycloakContext";
 
 interface DashboardStats {
   totalProducts: number;
@@ -20,6 +21,7 @@ interface DashboardStats {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
 
   const fetchStats = async () => {
     setLoading(true);
@@ -34,8 +36,11 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
+    if (!keycloakLoading && isAuthenticated) {
+      fetchStats();
+    }
+  }, [keycloakLoading, isAuthenticated]);
 
   const categoryData =
     stats?.categoryStats?.map((category) => ({
@@ -61,7 +66,7 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        {loading && !stats ? (
+        {(loading || keycloakLoading) && !stats ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCw className="h-8 w-8 animate-spin text-primary" />
           </div>

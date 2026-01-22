@@ -62,6 +62,12 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         product.UpdateCategory(request.Product.CategoryId); // Usa o ID original, não sanitizado
         product.UpdateStock(request.Product.StockQuantity);
 
+        // Atualizar userId se fornecido
+        if (!string.IsNullOrEmpty(request.UserId))
+        {
+            product.MarkAsUpdated(request.UserId);
+        }
+
         // Salvar no repositório
         var updatedProduct = await _productRepository.UpdateAsync(product, cancellationToken);
 

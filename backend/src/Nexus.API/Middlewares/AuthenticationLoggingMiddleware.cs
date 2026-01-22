@@ -68,6 +68,12 @@ public class AuthenticationLoggingMiddleware
                     string.Join(", ", roles),
                     requestMethod,
                     requestPath);
+                
+                // Log adicional para debug
+                var allClaims = user.Claims
+                    .Select(c => $"{c.Type}={c.Value}")
+                    .ToList();
+                _logger.LogDebug("Todas as claims do usuário: {Claims}", string.Join(", ", allClaims));
             }
             else
             {

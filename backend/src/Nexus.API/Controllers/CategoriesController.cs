@@ -87,7 +87,7 @@ public class CategoriesController : BaseController
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = "RequireAdmin")]
+    [Authorize(Policy = "RequireManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

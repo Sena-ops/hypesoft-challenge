@@ -40,12 +40,15 @@ export default function EditProductPage() {
     categoryId: "",
     stockQuantity: 0,
   });
+  
+  const [product, setProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const response = await api.get<Product>(`/products/${productId}`);
         const product = response.data;
+        setProduct(product);
         setFormData({
           name: product.name,
           description: product.description,
@@ -318,6 +321,49 @@ export default function EditProductPage() {
             </form>
           </CardContent>
         </Card>
+
+        {product && (product.createdBy || product.updatedBy || product.createdAt || product.updatedAt) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de Alterações</CardTitle>
+              <CardDescription>
+                Informações sobre criação e última atualização
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {product.createdAt && (
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Criado em</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(product.createdAt).toLocaleString("pt-BR")}
+                    </p>
+                    {product.createdBy && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Por: {product.createdBy}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {product.updatedAt && (
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Última atualização</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(product.updatedAt).toLocaleString("pt-BR")}
+                    </p>
+                    {product.updatedBy && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Por: {product.updatedBy}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );

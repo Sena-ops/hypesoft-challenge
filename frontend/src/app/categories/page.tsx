@@ -70,12 +70,20 @@ export default function CategoriesPage() {
       fetchCategories();
     } catch (error: any) {
       console.error("Erro ao excluir categoria:", error);
-      const errorMessage = error.response?.data?.error || "Erro ao excluir categoria. Verifique se não há produtos vinculados.";
-      setDeleteError(errorMessage);
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || "Erro ao excluir categoria.";
+      
+      let description = errorMessage;
+      if (error.response?.status === 403) {
+        description = "Você não tem permissão para excluir categorias. Se você tem a role 'editor', tente fazer logout e login novamente para atualizar suas permissões.";
+      } else if (errorMessage.includes("produtos vinculados")) {
+        description = errorMessage;
+      }
+      
+      setDeleteError(description);
       toast({
         variant: "error",
         title: "Erro ao excluir categoria",
-        description: errorMessage,
+        description,
       });
     }
   };
@@ -84,6 +92,20 @@ export default function CategoriesPage() {
     // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
     if (!keycloakLoading && isAuthenticated) {
       fetchCategories();
+      
+      // Debug: verificar roles do usuário
+      api.get("/debug/me")
+        .then(response => {
+          console.log("Roles do usuário:", response.data.roles);
+          console.log("Todas as claims:", response.data.allClaims);
+          if (!response.data.roles.includes("editor") && !response.data.roles.includes("Editor")) {
+            console.warn("⚠️ Role 'editor' não encontrada nas roles do usuário!");
+            console.warn("Roles disponíveis:", response.data.roles);
+          }
+        })
+        .catch(err => {
+          console.warn("Erro ao verificar roles:", err);
+        });
     }
   }, [keycloakLoading, isAuthenticated, fetchCategories]);
 

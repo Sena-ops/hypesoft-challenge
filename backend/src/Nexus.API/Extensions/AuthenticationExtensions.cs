@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -99,8 +100,23 @@ public static class AuthenticationExtensions
                 policy.RequireRole("editor", "Editor", "manager", "Manager", "admin", "Admin"));
             
             // Manager (compatibilidade - mesmo que editor)
+            // Usa RequireAssertion para verificação case-insensitive mais robusta
             options.AddPolicy("RequireManager", policy =>
-                policy.RequireRole("editor", "Editor", "manager", "Manager", "admin", "Admin"));
+                policy.RequireAssertion(context =>
+                {
+                    if (context.User?.Identity?.IsAuthenticated != true)
+                        return false;
+
+                    var roles = context.User.FindAll(System.Security.Claims.ClaimTypes.Role)
+                        .Select(c => c.Value)
+                        .ToList();
+
+                    // Verifica se o usuário tem uma das roles permitidas (case-insensitive)
+                    var allowedRoles = new[] { "editor", "manager", "admin" };
+                    return roles.Any(userRole => 
+                        allowedRoles.Any(allowed => 
+                            string.Equals(userRole, allowed, StringComparison.OrdinalIgnoreCase)));
+                }));
             
             // Leitor pode apenas visualizar (compatível com user)
             options.AddPolicy("RequireLeitor", policy =>

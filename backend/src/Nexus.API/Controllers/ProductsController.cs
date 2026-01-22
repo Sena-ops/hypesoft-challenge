@@ -82,7 +82,11 @@ public class ProductsController : BaseController
     {
         try
         {
-            var command = new CreateProductCommand { Product = createProductDto };
+            var command = new CreateProductCommand 
+            { 
+                Product = createProductDto,
+                UserId = GetCurrentUserId()
+            };
             var result = await _mediator.Send(command);
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
         }
@@ -103,7 +107,12 @@ public class ProductsController : BaseController
     {
         try
         {
-            var command = new UpdateProductCommand { Id = id, Product = updateProductDto };
+            var command = new UpdateProductCommand 
+            { 
+                Id = id, 
+                Product = updateProductDto,
+                UserId = GetCurrentUserId()
+            };
             var result = await _mediator.Send(command);
             return Ok(result);
         }
@@ -143,7 +152,7 @@ public class ProductsController : BaseController
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = "RequireAdmin")]
+    [Authorize(Policy = "RequireManager")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
