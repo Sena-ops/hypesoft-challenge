@@ -48,17 +48,35 @@ public class SecurityHeadersMiddleware
         }
 
         // Content Security Policy - política restritiva
+        // Ajustado para permitir Swagger UI funcionar
         if (!response.Headers.ContainsKey("Content-Security-Policy"))
         {
-            // Permite apenas recursos do mesmo origin e inline scripts/styles necessários
-            response.Headers.Append("Content-Security-Policy", 
-                "default-src 'self'; " +
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-                "style-src 'self' 'unsafe-inline'; " +
-                "img-src 'self' data: https:; " +
-                "font-src 'self' data:; " +
-                "connect-src 'self' http://localhost:8080 http://localhost:5000; " +
-                "frame-ancestors 'none';");
+            var isSwagger = context.Request.Path.StartsWithSegments("/swagger");
+            
+            if (isSwagger)
+            {
+                // CSP mais permissivo para Swagger
+                response.Headers.Append("Content-Security-Policy", 
+                    "default-src 'self'; " +
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+                    "style-src 'self' 'unsafe-inline'; " +
+                    "img-src 'self' data: https:; " +
+                    "font-src 'self' data:; " +
+                    "connect-src 'self' http://localhost:8080 http://localhost:5000; " +
+                    "frame-ancestors 'self';");
+            }
+            else
+            {
+                // CSP restritivo para outras rotas
+                response.Headers.Append("Content-Security-Policy", 
+                    "default-src 'self'; " +
+                    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+                    "style-src 'self' 'unsafe-inline'; " +
+                    "img-src 'self' data: https:; " +
+                    "font-src 'self' data:; " +
+                    "connect-src 'self' http://localhost:8080 http://localhost:5000; " +
+                    "frame-ancestors 'none';");
+            }
         }
 
         // Referrer Policy - controla quanto do referrer é enviado

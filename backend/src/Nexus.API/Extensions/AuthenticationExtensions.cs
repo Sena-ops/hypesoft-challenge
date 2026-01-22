@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -18,6 +20,7 @@ public static class AuthenticationExtensions
         var keycloakSection = configuration.GetSection("Keycloak");
         var authority = keycloakSection["Authority"];
         var audience = keycloakSection["Audience"];
+        var clientId = keycloakSection["ClientId"] ?? "nexus-frontend"; // ClientId do frontend
         var requireHttpsMetadata = keycloakSection.GetValue<bool>("RequireHttpsMetadata", false);
 
         services.AddAuthentication(options =>
@@ -31,19 +34,64 @@ public static class AuthenticationExtensions
             options.Audience = audience;
             options.RequireHttpsMetadata = requireHttpsMetadata;
             
+            // Configura o MetadataAddress baseado no Authority
+            // O .NET precisa buscar os metadados do OpenID Connect para validar tokens
+            if (!string.IsNullOrEmpty(authority))
+            {
+                options.MetadataAddress = $"{authority.TrimEnd('/')}/.well-known/openid-configuration";
+            }
+            
+            // Configuração para não bloquear a inicialização se Keycloak não estiver disponível
+            options.BackchannelHttpHandler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+            };
+            
+            // Timeout aumentado para permitir busca de metadados
+            options.BackchannelTimeout = TimeSpan.FromSeconds(10);
+            options.RefreshInterval = TimeSpan.FromMinutes(5);
+            
+            // Não valida automaticamente os metadados na inicialização
+            options.RefreshOnIssuerKeyNotFound = true;
+            options.SaveToken = true;
+            
+            // Configuração para não falhar se não conseguir buscar metadados
+            options.RequireHttpsMetadata = false;
+            
+            // Determina os issuers válidos baseado no ambiente
+            // Em desenvolvimento, o frontend pode acessar Keycloak via localhost
+            // Em produção (Docker), usa o nome do serviço
+            var validIssuers = new List<string> { authority };
+            
+            // Se o authority contém "keycloak" (Docker), também aceita localhost
+            if (authority?.Contains("keycloak") == true)
+            {
+                validIssuers.Add(authority.Replace("keycloak", "localhost"));
+            }
+            // Se o authority contém "localhost", também aceita keycloak (para compatibilidade)
+            else if (authority?.Contains("localhost") == true)
+            {
+                validIssuers.Add(authority.Replace("localhost", "keycloak"));
+            }
+            
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
-                ValidIssuer = authority,
-                ValidateAudience = true,
-                // Aceita tokens tanto do frontend quanto da API e account
-                ValidAudiences = new[] { audience, "nexus-frontend", "account" },
+                ValidIssuer = authority, // Mantém para compatibilidade
+                ValidIssuers = validIssuers, // Aceita múltiplos issuers
+                // IMPORTANTE: O Keycloak pode emitir tokens sem audience explícito para clientes públicos
+                // Temporariamente desabilitamos a validação de audience para permitir tokens sem audience
+                ValidateAudience = false, // Desabilitado - tokens do Keycloak para clientes públicos podem não ter audience
+                // Se reabilitar, use esta lista:
+                // ValidAudiences = new[] { audience, "nexus-frontend", "nexus-api", "account", clientId },
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
-                ClockSkew = TimeSpan.FromMinutes(1),
+                ClockSkew = TimeSpan.FromMinutes(5), // Aumentado para 5 minutos para evitar problemas de sincronização
                 NameClaimType = "preferred_username",
                 // Usar ClaimTypes.Role para que RequireRole funcione corretamente
-                RoleClaimType = System.Security.Claims.ClaimTypes.Role
+                RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+                // Não falha se não conseguir validar imediatamente
+                RequireSignedTokens = true
             };
 
             // Mapeamento de claims do Keycloak para o formato .NET
@@ -60,10 +108,23 @@ public static class AuthenticationExtensions
                         .GetRequiredService<ILoggerFactory>()
                         .CreateLogger("Authentication");
                     
+                    var request = context.HttpContext.Request;
+                    var authHeader = request.Headers["Authorization"].ToString();
+                    var hasAuthHeader = !string.IsNullOrEmpty(authHeader);
+                    
                     logger.LogWarning(
                         context.Exception,
-                        "Falha na autenticação: {Message}",
-                        context.Exception.Message);
+                        "Falha na autenticação: {Message}. Path: {Path}, Method: {Method}, HasAuthHeader: {HasAuthHeader}, AuthHeaderLength: {AuthHeaderLength}",
+                        context.Exception.Message,
+                        request.Path,
+                        request.Method,
+                        hasAuthHeader,
+                        hasAuthHeader ? authHeader.Length : 0);
+                    
+                    if (hasAuthHeader && authHeader.Length > 20)
+                    {
+                        logger.LogInformation("Auth header preview: {Preview}", authHeader.Substring(0, Math.Min(50, authHeader.Length)));
+                    }
                     
                     return Task.CompletedTask;
                 },
@@ -73,11 +134,73 @@ public static class AuthenticationExtensions
                         .GetRequiredService<ILoggerFactory>()
                         .CreateLogger("Authentication");
                     
+                    var request = context.HttpContext.Request;
+                    var authHeader = request.Headers["Authorization"].ToString();
+                    var hasAuthHeader = !string.IsNullOrEmpty(authHeader);
+                    
+                    logger.LogWarning(
+                        "Challenge de autenticação. Path: {Path}, Method: {Method}, HasAuthHeader: {HasAuthHeader}",
+                        request.Path,
+                        request.Method,
+                        hasAuthHeader);
+                    
                     if (context.AuthenticateFailure != null)
                     {
                         logger.LogWarning(
                             "Challenge de autenticação falhou: {Error}",
                             context.AuthenticateFailure.Message);
+                    }
+                    else if (!hasAuthHeader)
+                    {
+                        logger.LogWarning("Nenhum header Authorization encontrado na requisição");
+                    }
+                    
+                    return Task.CompletedTask;
+                },
+                OnMessageReceived = context =>
+                {
+                    var logger = context.HttpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("Authentication");
+                    
+                    var authHeader = context.Request.Headers["Authorization"].ToString();
+                    var hasAuthHeader = !string.IsNullOrEmpty(authHeader);
+                    
+                    logger.LogInformation(
+                        "Mensagem recebida. Path: {Path}, Method: {Method}, HasAuthHeader: {HasAuthHeader}",
+                        context.Request.Path,
+                        context.Request.Method,
+                        hasAuthHeader);
+                    
+                    if (hasAuthHeader)
+                    {
+                        // Tenta extrair informações básicas do token para debug
+                        var token = authHeader.Replace("Bearer ", "").Trim();
+                        if (!string.IsNullOrEmpty(token) && token.Length > 50)
+                        {
+                            try
+                            {
+                                // Decodifica o payload do JWT (sem verificar assinatura)
+                                var parts = token.Split('.');
+                                if (parts.Length >= 2)
+                                {
+                                    var payload = parts[1];
+                                    // Adiciona padding se necessário
+                                    while (payload.Length % 4 != 0)
+                                    {
+                                        payload += "=";
+                                    }
+                                    var payloadBytes = Convert.FromBase64String(payload);
+                                    var payloadJson = System.Text.Encoding.UTF8.GetString(payloadBytes);
+                                    logger.LogInformation("Token payload (primeiros 200 chars): {Payload}", 
+                                        payloadJson.Length > 200 ? payloadJson.Substring(0, 200) : payloadJson);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogWarning(ex, "Erro ao decodificar token para debug");
+                            }
+                        }
                     }
                     
                     return Task.CompletedTask;

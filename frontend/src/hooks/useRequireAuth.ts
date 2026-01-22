@@ -87,15 +87,16 @@ export function useRequireAuth(
     autoRedirect = true,
   } = options;
 
-  const { isAuthenticated, isLoading, hasAnyRole, user, login } = useKeycloak();
+  const { isAuthenticated, isLoading, hasAnyRole, user, login, token } = useKeycloak();
   const router = useRouter();
 
   // Verifica se tem as roles necessárias
   const hasRequiredRoles =
     requiredRoles.length === 0 || hasAnyRole(requiredRoles);
 
-  // Verifica se está pronto (autenticado e com roles)
-  const isReady = !isLoading && isAuthenticated && hasRequiredRoles;
+  // Verifica se está pronto (autenticado, com token disponível e com roles)
+  // O token precisa estar disponível para fazer requisições autenticadas
+  const isReady = !isLoading && isAuthenticated && !!token && hasRequiredRoles;
 
   useEffect(() => {
     if (isLoading || !autoRedirect) return;

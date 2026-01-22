@@ -1,5 +1,7 @@
+using System;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Logging;
 using Nexus.API.Extensions;
 using Nexus.API.Middlewares;
 using Nexus.Application.Extensions;
@@ -67,10 +69,17 @@ builder.Services.AddRateLimiter(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
+// Swagger sempre disponível em Development, mesmo sem Keycloak
+// IMPORTANTE: Swagger deve vir ANTES dos middlewares de autenticação
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Nexus API v1");
+        c.RoutePrefix = "swagger";
+        c.DisplayRequestDuration();
+    });
 }
 
 // Security Headers - deve ser um dos primeiros middlewares
@@ -79,10 +88,15 @@ app.UseSecurityHeaders();
 // Middleware de monitoramento de performance (primeiro para medir tempo total)
 app.UsePerformanceMonitoring(thresholdMs: 500);
 
-app.UseHttpsRedirection();
+// HTTPS Redirection apenas em produção com HTTPS configurado
+if (!app.Environment.IsDevelopment() && app.Configuration["ASPNETCORE_HTTPS_PORT"] != null)
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors();
 
+// Rate Limiter - exclui Swagger e Health endpoints
 app.UseRateLimiter();
 
 app.UseAuthentication();
@@ -93,6 +107,23 @@ app.UseAuthenticationLogging();
 
 app.MapControllers();
 
+// Health check endpoint (sem autenticação)
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/api/health");
 
-app.Run();
+// Log de inicialização
+app.Logger.LogInformation("API configurada. Iniciando servidor...");
+app.Logger.LogInformation("Swagger disponível em: /swagger");
+app.Logger.LogInformation("Health check disponível em: /api/health");
+
+try
+{
+    app.Logger.LogInformation("Iniciando servidor HTTP na porta 80...");
+    app.Logger.LogInformation("URLs configuradas: {Urls}", string.Join(", ", app.Urls));
+    app.Run();
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Erro ao iniciar servidor: {Message}", ex.Message);
+    throw;
+}

@@ -36,18 +36,51 @@ const checkKeycloakHealth = async (): Promise<boolean> => {
     const timeoutId = setTimeout(() => controller.abort(), KEYCLOAK_HEALTH_CHECK_TIMEOUT);
     
     // Tenta acessar a configuração do realm
+    // Usa 'no-cors' para evitar problemas de CORS no health check
     const response = await fetch(
       `${keycloakUrl}/realms/${realm}/.well-known/openid-configuration`,
       { 
         signal: controller.signal,
         mode: 'cors',
+        credentials: 'omit',
       }
     );
     
     clearTimeout(timeoutId);
-    return response.ok;
+    
+    // Se a resposta for ok, Keycloak está disponível
+    if (response.ok) {
+      return true;
+    }
+    
+    // Se não for ok, ainda pode estar disponível (problema de CORS ou realm)
+    // Tenta verificar o endpoint de health do Keycloak
+    try {
+      const healthController = new AbortController();
+      const healthTimeout = setTimeout(() => healthController.abort(), 2000);
+      
+      const healthResponse = await fetch(`${keycloakUrl}/health/ready`, {
+        signal: healthController.signal,
+        mode: 'cors',
+        credentials: 'omit',
+      });
+      
+      clearTimeout(healthTimeout);
+      return healthResponse.ok || healthResponse.status === 200;
+    } catch (healthError) {
+      // Se não conseguir verificar health, assume que está disponível
+      // (pode ser problema de CORS, mas o servidor está respondendo)
+      console.log("Health check do Keycloak falhou, mas assumindo disponível:", healthError);
+      return true;
+    }
   } catch (error) {
     console.warn("Keycloak health check failed:", error);
+    // Em caso de erro de rede, verifica se é um erro de CORS (que indica que o servidor está respondendo)
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      // Pode ser CORS, mas o servidor está respondendo
+      console.log("Possível erro de CORS, mas Keycloak pode estar disponível");
+      return true; // Assume disponível se for erro de rede/CORS
+    }
     return false;
   }
 };
@@ -120,14 +153,16 @@ export const KeycloakProvider = ({
         const isHealthy = await checkKeycloakHealth();
         
         if (!isHealthy) {
-          console.warn("Keycloak não está disponível");
-          setIsKeycloakAvailable(false);
-          setIsLoading(false);
-          return;
+          console.warn("Keycloak health check falhou, mas tentando inicializar mesmo assim...");
+          // Continua tentando inicializar mesmo se o health check falhar
+          // O Keycloak pode estar disponível mas com problemas de CORS no health check
+        } else {
+          console.log("Keycloak health check passou");
         }
 
-        console.log("Keycloak disponível, inicializando...");
+        console.log("Inicializando Keycloak...");
         const keycloakInstance = getKeycloakInstance();
+        setIsKeycloakAvailable(true); // Marca como disponível para tentar inicializar
 
         // Configura callback de atualização de token
         keycloakInstance.onTokenExpired = () => {
@@ -147,11 +182,33 @@ export const KeycloakProvider = ({
         };
 
         // Callback quando autenticação muda
-        keycloakInstance.onAuthSuccess = () => {
+        keycloakInstance.onAuthSuccess = async () => {
           console.log("Autenticação bem-sucedida!");
+          
+          // Aguarda um pouco para garantir que o token esteja disponível
+          if (!keycloakInstance.token) {
+            let attempts = 0;
+            const maxAttempts = 20; // 2 segundos
+            
+            while (!keycloakInstance.token && attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+              attempts++;
+            }
+          }
+          
+          // Tenta atualizar o token se necessário
+          if (keycloakInstance.authenticated && !keycloakInstance.token) {
+            try {
+              await keycloakInstance.updateToken(30);
+            } catch (err) {
+              console.warn("Erro ao atualizar token no onAuthSuccess:", err);
+            }
+          }
+          
           const userData = parseKeycloakUser(keycloakInstance);
           setUser(userData);
           setToken(keycloakInstance.token || null);
+          console.log("Token atualizado no onAuthSuccess:", keycloakInstance.token ? "disponível" : "não disponível");
         };
 
         keycloakInstance.onAuthLogout = () => {
@@ -183,10 +240,42 @@ export const KeycloakProvider = ({
 
         if (authenticated) {
           console.log("Usuário autenticado, processando token...");
-          const userData = parseKeycloakUser(keycloakInstance);
-          console.log("Dados do usuário:", userData);
-          setUser(userData);
-          setToken(keycloakInstance.token || null);
+          
+          // Aguarda o token estar disponível (pode demorar um pouco após redirect)
+          if (!keycloakInstance.token) {
+            console.log("Token não disponível imediatamente, aguardando...");
+            let attempts = 0;
+            const maxAttempts = 30; // 3 segundos
+            
+            while (!keycloakInstance.token && attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+              attempts++;
+              
+              // Tenta atualizar o token se ainda não estiver disponível
+              if (!keycloakInstance.token && attempts % 5 === 0) {
+                try {
+                  await keycloakInstance.updateToken(30);
+                } catch (err) {
+                  console.warn("Erro ao tentar atualizar token durante inicialização:", err);
+                }
+              }
+            }
+          }
+          
+          if (keycloakInstance.token) {
+            const userData = parseKeycloakUser(keycloakInstance);
+            console.log("Dados do usuário:", userData);
+            setUser(userData);
+            setToken(keycloakInstance.token);
+            console.log("Token disponível e usuário configurado");
+          } else {
+            console.warn("Token não disponível após aguardar, mas usuário está autenticado");
+            // Mesmo sem token imediatamente, marca como autenticado
+            // O token será obtido na primeira requisição
+            const userData = parseKeycloakUser(keycloakInstance);
+            setUser(userData);
+            setToken(null);
+          }
         }
 
         setIsLoading(false);

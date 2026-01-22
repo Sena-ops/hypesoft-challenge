@@ -16,6 +16,18 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# Build-time environment variables (required for NEXT_PUBLIC_* vars)
+# IMPORTANTE: Use localhost porque o código roda no navegador do usuário, não no container
+ARG NEXT_PUBLIC_API_URL=http://localhost:5000/api
+ARG NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8080
+ARG NEXT_PUBLIC_KEYCLOAK_REALM=nexus
+ARG NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=nexus-frontend
+
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_KEYCLOAK_URL=${NEXT_PUBLIC_KEYCLOAK_URL}
+ENV NEXT_PUBLIC_KEYCLOAK_REALM=${NEXT_PUBLIC_KEYCLOAK_REALM}
+ENV NEXT_PUBLIC_KEYCLOAK_CLIENT_ID=${NEXT_PUBLIC_KEYCLOAK_CLIENT_ID}
+
 RUN npm run build
 
 # Production image, copy all the files and run next

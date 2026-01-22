@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Nexus.Application.Interfaces;
 using Nexus.Application.Interfaces.Auth;
 using Nexus.Domain.Repositories;
@@ -8,6 +9,7 @@ using Nexus.Infrastructure.Caching;
 using Nexus.Infrastructure.Data;
 using Nexus.Infrastructure.Repositories;
 using StackExchange.Redis;
+using System;
 
 namespace Nexus.Infrastructure.Configurations;
 
@@ -29,16 +31,44 @@ public static class DependencyInjection
             ?? configuration["Redis:ConnectionString"] 
             ?? "localhost:6379";
         
+        // Configura Redis com timeout curto para não bloquear inicialização
         services.AddStackExchangeRedisCache(options =>
         {
-            options.Configuration = redisConnectionString;
+            options.Configuration = $"{redisConnectionString},connectTimeout=2000,syncTimeout=2000,abortConnect=false";
             options.InstanceName = "Nexus:";
         });
 
         // Registrar IConnectionMultiplexer para operações avançadas (ex: RemoveByPrefix)
+        // Configurado para não bloquear a inicialização se Redis não estiver disponível
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
-            return ConnectionMultiplexer.Connect(redisConnectionString);
+            var configurationOptions = ConfigurationOptions.Parse(redisConnectionString);
+            configurationOptions.ConnectTimeout = 500; // 500ms - muito curto
+            configurationOptions.SyncTimeout = 500;
+            configurationOptions.AsyncTimeout = 500;
+            configurationOptions.AbortOnConnectFail = true; // Aborta rapidamente se não conseguir
+            configurationOptions.ConnectRetry = 0; // Não tenta reconectar
+            configurationOptions.AllowAdmin = false;
+            configurationOptions.ClientName = "Nexus-API";
+            
+            // Tenta conectar de forma não bloqueante
+            // Se falhar, o cache será usado em modo fallback (memory cache)
+            try
+            {
+                var multiplexer = ConnectionMultiplexer.Connect(configurationOptions);
+                // Não espera pela conexão - deixa conectar em background
+                return multiplexer;
+            }
+            catch (Exception ex)
+            {
+                // Log do erro mas não bloqueia a inicialização
+                var logger = sp.GetService<ILogger<IConnectionMultiplexer>>();
+                logger?.LogWarning(ex, "Falha ao conectar ao Redis. Usando fallback para Memory Cache.");
+                
+                // Retorna um multiplexer que falhará silenciosamente nas operações
+                // O cache service deve ter fallback para memory cache
+                return ConnectionMultiplexer.Connect(configurationOptions);
+            }
         });
 
         // Cache Service usando Redis

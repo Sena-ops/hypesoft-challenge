@@ -10,10 +10,10 @@ import { useKeycloak } from "@/stores/KeycloakContext";
 import { useDashboardStats } from "@/hooks";
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
-  // Só busca dados quando estiver autenticado
+  const { isAuthenticated, isLoading: keycloakLoading, token } = useKeycloak();
+  // Só busca dados quando estiver autenticado E o token estiver disponível
   const { data: stats, isLoading, refetch, isError, error } = useDashboardStats(
-    !keycloakLoading && isAuthenticated
+    !keycloakLoading && isAuthenticated && !!token
   );
 
   const categoryData =

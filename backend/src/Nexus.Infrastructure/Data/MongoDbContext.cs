@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 
@@ -15,7 +16,13 @@ public class MongoDbContext
         var databaseName = configuration["MongoDB:DatabaseName"] 
             ?? throw new InvalidOperationException("MongoDB database name is not configured");
 
-        var client = new MongoClient(connectionString);
+        // Configura MongoDB com timeout curto para não bloquear inicialização
+        var clientSettings = MongoClientSettings.FromConnectionString(connectionString);
+        clientSettings.ConnectTimeout = TimeSpan.FromSeconds(5);
+        clientSettings.ServerSelectionTimeout = TimeSpan.FromSeconds(5);
+        clientSettings.SocketTimeout = TimeSpan.FromSeconds(5);
+        
+        var client = new MongoClient(clientSettings);
         _database = client.GetDatabase(databaseName);
     }
 
