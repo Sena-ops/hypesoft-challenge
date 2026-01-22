@@ -11,17 +11,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Save, RefreshCw, Tags } from "lucide-react";
-import { api } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
 import { updateCategorySchema, type UpdateCategoryFormData } from "@/lib/validations/category";
-import { Category } from "@/types";
 import Link from "next/link";
+import { useCategory, useUpdateCategory } from "@/hooks";
 
 export default function EditCategoryPage() {
   const router = useRouter();
   const params = useParams();
   const categoryId = params.id as string;
   const { toast } = useToast();
+  
+  // React Query hooks
+  const { data: category, isLoading: loadingCategory, isError: categoryError } = useCategory(categoryId);
+  const updateCategoryMutation = useUpdateCategory();
   
   const {
     register,
@@ -33,35 +36,30 @@ export default function EditCategoryPage() {
     mode: "onChange", // Validação em tempo real
   });
 
+  // Atualizar formulário quando categoria for carregada
   useEffect(() => {
-    const fetchCategory = async () => {
-      try {
-        const response = await api.get<Category>(`/categories/${categoryId}`);
-        const category = response.data;
-        reset({
-          name: category.name,
-          description: category.description,
-        });
-      } catch (error: any) {
-        console.error("Erro ao carregar categoria:", error);
-        if (error.response?.status === 404) {
-          toast({
-            variant: "error",
-            title: "Categoria não encontrada",
-            description: "A categoria que você está procurando não existe ou foi removida.",
-          });
-        }
-      }
-    };
-
-    if (categoryId) {
-      fetchCategory();
+    if (category) {
+      reset({
+        name: category.name,
+        description: category.description,
+      });
     }
-  }, [categoryId, reset, toast]);
+  }, [category, reset]);
+
+  // Mostrar erro se categoria não encontrada
+  useEffect(() => {
+    if (categoryError) {
+      toast({
+        variant: "error",
+        title: "Categoria não encontrada",
+        description: "A categoria que você está procurando não existe ou foi removida.",
+      });
+    }
+  }, [categoryError, toast]);
 
   const onSubmit = async (data: UpdateCategoryFormData) => {
     try {
-      await api.put(`/categories/${categoryId}`, data);
+      await updateCategoryMutation.mutateAsync({ id: categoryId, data });
       toast({
         variant: "success",
         title: "Categoria atualizada!",
@@ -77,6 +75,33 @@ export default function EditCategoryPage() {
       });
     }
   };
+
+  if (loadingCategory) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (categoryError || !category) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-64 text-center">
+          <Tags className="h-12 w-12 text-muted-foreground/50 mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Categoria não encontrada</h2>
+          <p className="text-muted-foreground mb-4">
+            A categoria que você está procurando não existe ou foi removida.
+          </p>
+          <Link href="/categories">
+            <Button>Voltar para categorias</Button>
+          </Link>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -138,13 +163,17 @@ export default function EditCategoryPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button type="submit" disabled={isSubmitting} className="gap-2">
-                  {isSubmitting ? (
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || updateCategoryMutation.isPending} 
+                  className="gap-2"
+                >
+                  {isSubmitting || updateCategoryMutation.isPending ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {isSubmitting ? "Salvando..." : "Salvar Alterações"}
+                  {isSubmitting || updateCategoryMutation.isPending ? "Salvando..." : "Salvar Alterações"}
                 </Button>
                 <Link href="/categories" className="w-full sm:w-auto">
                   <Button type="button" variant="outline" className="w-full sm:w-auto">

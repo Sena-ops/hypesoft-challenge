@@ -21,9 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Settings, RefreshCw, Save, Shield } from "lucide-react";
-import { api } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
-import { useRequireAuth } from "@/hooks";
+import { useRequireAuth, useUsers, useUpdateUserRoles } from "@/hooks";
 
 interface UserRole {
   userId: string;
@@ -50,52 +49,52 @@ const ROLE_COLORS: Record<string, "default" | "secondary" | "destructive"> = {
 export default function SettingsPage() {
   const { isReady } = useRequireAuth({ requiredRoles: ["admin"] });
   const { toast } = useToast();
-  const [users, setUsers] = useState<UserRole[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [userRoles, setUserRoles] = useState<Record<string, string[]>>({});
   const [availableRoles] = useState<string[]>(["admin", "editor", "leitor"]);
 
-  useEffect(() => {
-    if (isReady) {
-      fetchUsers();
-    }
-  }, [isReady]);
+  // React Query hooks
+  const { data: usersData = [], isLoading: loading, refetch, isError, error } = useUsers();
+  const updateUserRolesMutation = useUpdateUserRoles();
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get<UserRole[]>("/users");
-      console.log("Resposta da API:", response.data);
-      
-      // Verificar se response.data é um array
-      if (!Array.isArray(response.data)) {
-        console.error("Resposta não é um array:", response.data);
-        throw new Error("Formato de resposta inválido: esperado um array de usuários");
-      }
-      
-      // Validar estrutura dos dados
-      const validUsers = response.data.filter((user) => {
-        const isValid = user && 
-          typeof user.userId === 'string' && 
-          typeof user.username === 'string' &&
-          Array.isArray(user.roles);
-        
-        if (!isValid) {
-          console.warn("Usuário inválido encontrado:", user);
-        }
-        return isValid;
-      });
-      
-      if (validUsers.length === 0 && response.data.length > 0) {
-        throw new Error("Nenhum usuário válido encontrado na resposta");
-      }
-      
-      setUsers(validUsers);
-      
-      // Inicializar userRoles com as roles atuais
+  // Log para debug
+  useEffect(() => {
+    if (usersData.length > 0) {
+      console.log("Dados de usuários recebidos:", usersData);
+      console.log("Primeiro usuário:", usersData[0]);
+    }
+    if (isError) {
+      console.error("Erro ao carregar usuários:", error);
+    }
+  }, [usersData, isError, error]);
+
+  // Validar e processar dados dos usuários
+  // O backend retorna UserRoleDto que tem userId (com U maiúsculo)
+  const users = usersData.filter((user) => {
+    const isValid = user && 
+      typeof user.userId === 'string' && 
+      typeof user.username === 'string' &&
+      Array.isArray(user.roles);
+    
+    if (!isValid) {
+      console.warn("Usuário inválido encontrado:", user);
+    }
+    return isValid;
+  }).map(user => ({
+    userId: user.userId,
+    username: user.username || "",
+    email: user.email || "",
+    firstName: user.firstName || "",
+    lastName: user.lastName || "",
+    roles: user.roles || [],
+    enabled: user.enabled !== undefined ? user.enabled : true,
+  }));
+
+  // Inicializar userRoles quando usuários forem carregados
+  useEffect(() => {
+    if (users.length > 0 && Object.keys(userRoles).length === 0) {
       const initialRoles: Record<string, string[]> = {};
-      validUsers.forEach((user) => {
+      users.forEach((user) => {
         // Filtrar apenas as roles principais (case-insensitive)
         const mainRoles = (user.roles || [])
           .filter((r) => availableRoles.some((ar) => ar.toLowerCase() === r.toLowerCase()))
@@ -107,31 +106,9 @@ export default function SettingsPage() {
         initialRoles[user.userId] = mainRoles.length > 0 ? [mainRoles[0]] : []; // Apenas primeira role
       });
       setUserRoles(initialRoles);
-    } catch (error: any) {
-      console.error("Erro ao carregar usuários:", error);
-      console.error("Detalhes do erro:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-      });
-      
-      const errorMessage = 
-        error.response?.data?.error || 
-        error.response?.data?.details || 
-        error.message || 
-        "Não foi possível carregar a lista de usuários.";
-      
-      toast({
-        variant: "error",
-        title: "Erro ao carregar usuários",
-        description: errorMessage,
-        duration: 8000, // Mostra por mais tempo para erros importantes
-      });
-    } finally {
-      setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users.length, availableRoles]);
 
   const handleRoleChange = (userId: string, roles: string[]) => {
     setUserRoles((prev) => ({
@@ -143,7 +120,8 @@ export default function SettingsPage() {
   const handleSaveRoles = async (userId: string) => {
     setSaving(userId);
     try {
-      await api.put(`/users/${userId}/roles`, {
+      await updateUserRolesMutation.mutateAsync({
+        userId,
         roles: userRoles[userId] || [],
       });
       toast({
@@ -151,7 +129,7 @@ export default function SettingsPage() {
         title: "Permissões atualizadas!",
         description: "As permissões do usuário foram atualizadas com sucesso.",
       });
-      fetchUsers(); // Recarregar lista
+      // O React Query já invalida e recarrega automaticamente
     } catch (error: any) {
       console.error("Erro ao atualizar permissões:", error);
       const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message || "Não foi possível atualizar as permissões.";
@@ -186,7 +164,7 @@ export default function SettingsPage() {
               Gerencie permissões e roles dos usuários do sistema
             </p>
           </div>
-          <Button variant="outline" onClick={fetchUsers} disabled={loading} className="gap-2">
+          <Button variant="outline" onClick={() => refetch()} disabled={loading} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
@@ -207,10 +185,31 @@ export default function SettingsPage() {
               <div className="flex items-center justify-center h-64">
                 <RefreshCw className="h-8 w-8 animate-spin text-primary" />
               </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center justify-center h-64 text-center">
+                <Settings className="h-12 w-12 text-destructive/50 mb-4" />
+                <p className="text-destructive font-medium mb-2">Erro ao carregar usuários</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {error instanceof Error ? error.message : "Não foi possível carregar a lista de usuários."}
+                </p>
+                <Button onClick={() => refetch()} variant="outline">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Tentar novamente
+                </Button>
+              </div>
             ) : users.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-center">
                 <Settings className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground">Nenhum usuário encontrado</p>
+                <p className="text-muted-foreground mb-2">Nenhum usuário encontrado</p>
+                <p className="text-sm text-muted-foreground">
+                  {usersData.length > 0 
+                    ? `${usersData.length} usuário(s) encontrado(s), mas nenhum passou na validação. Verifique o console.`
+                    : "Nenhum usuário foi retornado pela API."}
+                </p>
+                <Button onClick={() => refetch()} variant="outline" className="mt-4">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Tentar novamente
+                </Button>
               </div>
             ) : (
               <div className="overflow-x-auto">

@@ -18,19 +18,18 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Save, RefreshCw } from "lucide-react";
-import { api } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
 import { createProductSchema, type CreateProductFormData } from "@/lib/validations/product";
-import { Category } from "@/types";
 import Link from "next/link";
 import { useKeycloak } from "@/stores/KeycloakContext";
+import { useCategories, useCreateProduct } from "@/hooks";
 
 export default function NewProductPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
+  const { data: categories = [], isLoading: loadingCategories } = useCategories();
+  const createProductMutation = useCreateProduct();
   
   const {
     register,
@@ -50,30 +49,9 @@ export default function NewProductPage() {
     },
   });
 
-  useEffect(() => {
-    if (!keycloakLoading && isAuthenticated) {
-      const fetchCategories = async () => {
-        try {
-          const response = await api.get<Category[]>("/categories");
-          setCategories(response.data);
-        } catch (error) {
-          console.error("Erro ao carregar categorias:", error);
-          toast({
-            variant: "error",
-            title: "Erro ao carregar categorias",
-            description: "Não foi possível carregar as categorias. Tente novamente.",
-          });
-        } finally {
-          setLoadingCategories(false);
-        }
-      };
-      fetchCategories();
-    }
-  }, [keycloakLoading, isAuthenticated, toast]);
-
   const onSubmit = async (data: CreateProductFormData) => {
     try {
-      await api.post("/products", data);
+      await createProductMutation.mutateAsync(data);
       toast({
         variant: "success",
         title: "Produto criado!",
@@ -240,13 +218,17 @@ export default function NewProductPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button type="submit" disabled={isSubmitting} className="gap-2">
-                  {isSubmitting ? (
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || createProductMutation.isPending} 
+                  className="gap-2"
+                >
+                  {isSubmitting || createProductMutation.isPending ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {isSubmitting ? "Salvando..." : "Salvar Produto"}
+                  {isSubmitting || createProductMutation.isPending ? "Salvando..." : "Criar Produto"}
                 </Button>
                 <Link href="/products" className="w-full sm:w-auto">
                   <Button type="button" variant="outline" className="w-full sm:w-auto">
