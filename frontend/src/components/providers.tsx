@@ -14,6 +14,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 60 * 1000, // 1 minuto
             retry: 1,
+            refetchOnWindowFocus: false, // Evita refetch automático ao focar na janela
+          },
+          mutations: {
+            retry: 0, // Não tenta novamente mutações que falharam
           },
         },
       })

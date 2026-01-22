@@ -1,46 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { LowStockList } from "@/components/dashboard/LowStockList";
 import { SalesChart } from "@/components/charts";
 import { Package, DollarSign, AlertTriangle, Tags, RefreshCw } from "lucide-react";
-import { api } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { useKeycloak } from "@/stores/KeycloakContext";
-
-interface DashboardStats {
-  totalProducts: number;
-  totalStockValue: number;
-  lowStockCount: number;
-  categoryStats: { categoryName: string; productCount: number }[];
-  lowStockProducts: any[];
-}
+import { useDashboardStats } from "@/hooks";
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
-
-  const fetchStats = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get("/dashboard");
-      setStats(response.data);
-    } catch (error) {
-      console.error("Erro ao carregar estatísticas:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
-    if (!keycloakLoading && isAuthenticated) {
-      fetchStats();
-    }
-  }, [keycloakLoading, isAuthenticated]);
+  // Só busca dados quando estiver autenticado
+  const { data: stats, isLoading, refetch, isError, error } = useDashboardStats(
+    !keycloakLoading && isAuthenticated
+  );
 
   const categoryData =
     stats?.categoryStats?.map((category) => ({
@@ -60,15 +34,31 @@ export default function DashboardPage() {
               Visão geral do sistema de gestão de produtos
             </p>
           </div>
-          <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={fetchStats} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          <Button 
+            variant="outline" 
+            className="gap-2 w-full sm:w-auto" 
+            onClick={() => refetch()} 
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
         </div>
 
-        {(loading || keycloakLoading) && !stats ? (
+        {(isLoading || keycloakLoading) && !stats ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center h-64 gap-4">
+            <AlertTriangle className="h-12 w-12 text-destructive" />
+            <h2 className="text-xl font-semibold">Erro ao carregar dados</h2>
+            <p className="text-muted-foreground text-center max-w-md">
+              {error instanceof Error ? error.message : "Não foi possível carregar as estatísticas do dashboard."}
+            </p>
+            <Button onClick={() => refetch()} variant="outline">
+              Tentar novamente
+            </Button>
           </div>
         ) : (
           <>

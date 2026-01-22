@@ -16,21 +16,16 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Save, RefreshCw, Package } from "lucide-react";
-import { api } from "@/services/api";
-import { Category, Product, UpdateProductDto } from "@/types";
+import { UpdateProductDto } from "@/types";
 import Link from "next/link";
+import { useProduct, useCategories, useUpdateProduct } from "@/hooks";
 
 export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
   
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingProduct, setLoadingProduct] = useState(true);
-  const [loadingCategories, setLoadingCategories] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [notFound, setNotFound] = useState(false);
   
   const [formData, setFormData] = useState<UpdateProductDto>({
     name: "",
@@ -40,47 +35,25 @@ export default function EditProductPage() {
     categoryId: "",
     stockQuantity: 0,
   });
-  
-  const [product, setProduct] = useState<Product | null>(null);
 
+  // React Query hooks
+  const { data: product, isLoading: loadingProduct, isError: productError } = useProduct(productId);
+  const { data: categories = [], isLoading: loadingCategories } = useCategories();
+  const updateProductMutation = useUpdateProduct();
+
+  // Atualizar formData quando o produto for carregado
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const response = await api.get<Product>(`/products/${productId}`);
-        const product = response.data;
-        setProduct(product);
-        setFormData({
-          name: product.name,
-          description: product.description,
-          price: product.price,
-          currency: product.currency || "BRL",
-          categoryId: product.categoryId,
-          stockQuantity: product.stockQuantity,
-        });
-      } catch (error: any) {
-        console.error("Erro ao carregar produto:", error);
-        if (error.response?.status === 404) {
-          setNotFound(true);
-        }
-      } finally {
-        setLoadingProduct(false);
-      }
-    };
-
-    const fetchCategories = async () => {
-      try {
-        const response = await api.get<Category[]>("/categories");
-        setCategories(response.data);
-      } catch (error) {
-        console.error("Erro ao carregar categorias:", error);
-      } finally {
-        setLoadingCategories(false);
-      }
-    };
-
-    fetchProduct();
-    fetchCategories();
-  }, [productId]);
+    if (product) {
+      setFormData({
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        currency: product.currency || "BRL",
+        categoryId: product.categoryId,
+        stockQuantity: product.stockQuantity,
+      });
+    }
+  }, [product]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -114,9 +87,8 @@ export default function EditProductPage() {
 
     if (!validate()) return;
 
-    setLoading(true);
     try {
-      await api.put(`/products/${productId}`, formData);
+      await updateProductMutation.mutateAsync({ id: productId, data: formData });
       router.push("/products");
     } catch (error: any) {
       console.error("Erro ao atualizar produto:", error);
@@ -125,8 +97,6 @@ export default function EditProductPage() {
       } else {
         setErrors({ submit: "Erro ao atualizar produto. Tente novamente." });
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -150,7 +120,7 @@ export default function EditProductPage() {
     );
   }
 
-  if (notFound) {
+  if (productError || !product) {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center h-64 text-center">
@@ -304,13 +274,17 @@ export default function EditProductPage() {
               )}
 
               <div className="flex gap-4">
-                <Button type="submit" disabled={loading} className="gap-2">
-                  {loading ? (
+                <Button 
+                  type="submit" 
+                  disabled={updateProductMutation.isPending} 
+                  className="gap-2"
+                >
+                  {updateProductMutation.isPending ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {loading ? "Salvando..." : "Salvar Alterações"}
+                  {updateProductMutation.isPending ? "Salvando..." : "Salvar Alterações"}
                 </Button>
                 <Link href="/products">
                   <Button type="button" variant="outline">

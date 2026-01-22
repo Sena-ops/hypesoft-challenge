@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,11 +26,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ManagerOnly } from "@/components/auth";
 import { Plus, Search, Pencil, Trash2, Tags, RefreshCw } from "lucide-react";
-import { api } from "@/services/api";
 import { Category } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { usePermissions } from "@/hooks";
+import { usePermissions, useCategories, useDeleteCategory, useCurrentUser } from "@/hooks";
 import { useKeycloak } from "@/stores/KeycloakContext";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -39,35 +38,31 @@ export default function CategoriesPage() {
   const permissions = usePermissions();
   const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
   const { toast } = useToast();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const fetchCategories = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await api.get<Category[]>("/categories");
-      setCategories(response.data);
-      setFilteredCategories(response.data);
-    } catch (error) {
-      console.error("Erro ao carregar categorias:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // React Query hooks
+  const { data: categories = [], isLoading: loading, refetch } = useCategories();
+  const deleteCategoryMutation = useDeleteCategory();
+  
+  // Debug: verificar roles do usuário
+  const { data: currentUser } = useCurrentUser();
+
+  // Filtrar categorias localmente baseado no searchTerm
+  const filteredCategories = categories.filter((category) =>
+    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const handleDelete = async (id: string) => {
     setDeleteError(null);
     try {
-      await api.delete(`/categories/${id}`);
+      await deleteCategoryMutation.mutateAsync(id);
       toast({
         variant: "success",
         title: "Categoria excluída!",
         description: "A categoria foi excluída com sucesso.",
       });
-      fetchCategories();
     } catch (error: any) {
       console.error("Erro ao excluir categoria:", error);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || "Erro ao excluir categoria.";
@@ -89,38 +84,18 @@ export default function CategoriesPage() {
   };
 
   useEffect(() => {
-    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
-    if (!keycloakLoading && isAuthenticated) {
-      fetchCategories();
-      
-      // Debug: verificar roles do usuário
-      api.get("/debug/me")
-        .then(response => {
-          console.log("Roles do usuário:", response.data.roles);
-          console.log("Todas as claims:", response.data.allClaims);
-          if (!response.data.roles.includes("editor") && !response.data.roles.includes("Editor")) {
-            console.warn("⚠️ Role 'editor' não encontrada nas roles do usuário!");
-            console.warn("Roles disponíveis:", response.data.roles);
-          }
-        })
-        .catch(err => {
-          console.warn("Erro ao verificar roles:", err);
-        });
+    // Debug: verificar roles do usuário
+    if (currentUser) {
+      console.log("Roles do usuário:", currentUser.roles);
+      console.log("Todas as claims:", currentUser.allClaims);
+      if (!currentUser.roles.includes("editor") && !currentUser.roles.includes("Editor")) {
+        console.warn("⚠️ Role 'editor' não encontrada nas roles do usuário!");
+        console.warn("Roles disponíveis:", currentUser.roles);
+      }
     }
-  }, [keycloakLoading, isAuthenticated, fetchCategories]);
+  }, [currentUser]);
 
-  useEffect(() => {
-    if (!searchTerm.trim()) {
-      setFilteredCategories(categories);
-    } else {
-      const filtered = categories.filter(
-        (category) =>
-          category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          category.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredCategories(filtered);
-    }
-  }, [searchTerm, categories]);
+  // filteredCategories é calculado diretamente acima, não precisa de useEffect
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pt-BR", {
@@ -184,11 +159,12 @@ export default function CategoriesPage() {
                   size="icon"
                   onClick={() => {
                     setSearchTerm("");
-                    fetchCategories();
+                    refetch();
                   }}
-                  className="sm:w-auto"
+                  disabled={loading}
+                  title="Atualizar dados"
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                 </Button>
               </div>
             </div>

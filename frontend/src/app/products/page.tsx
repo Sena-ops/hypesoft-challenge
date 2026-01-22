@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,11 +44,18 @@ import {
   Plus, Search, Pencil, Trash2, Package, RefreshCw, ChevronLeft, ChevronRight,
   Download, Filter, X, AlertTriangle
 } from "lucide-react";
-import { api } from "@/services/api";
-import { Product, Category, PagedResult } from "@/types";
+import { Product, Category } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { usePermissions } from "@/hooks";
+import { 
+  usePermissions, 
+  useProducts, 
+  useCategories, 
+  useDeleteProduct, 
+  useBulkDeleteProducts,
+  useSearchProducts,
+  useLowStockProducts
+} from "@/hooks";
 import { useKeycloak } from "@/stores/KeycloakContext";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -57,9 +64,6 @@ export default function ProductsPage() {
   const permissions = usePermissions();
   const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
   const { toast } = useToast();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [minPrice, setMinPrice] = useState<string>("");
@@ -67,116 +71,91 @@ export default function ProductsPage() {
   const [stockFilter, setStockFilter] = useState<string>("all");
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [lowStockCount, setLowStockCount] = useState(0);
   const pageSize = 10;
 
-  const fetchProducts = useCallback(async () => {
-    setLoading(true);
-    try {
-      let url = `/products?page=${page}&pageSize=${pageSize}`;
-      
-      if (selectedCategory && selectedCategory !== "all") {
-        url += `&categoryId=${selectedCategory}`;
-      }
+  // React Query hooks
+  const { data: productsData, isLoading: loadingProducts, refetch: refetchProducts } = useProducts({
+    page,
+    pageSize,
+    categoryId: selectedCategory !== "all" ? selectedCategory : undefined,
+  });
 
-      const response = await api.get<PagedResult<Product>>(url);
-      let filteredProducts = response.data.items;
+  const { data: categories = [], refetch: refetchCategories } = useCategories();
+  const { data: lowStockProducts = [], refetch: refetchLowStock } = useLowStockProducts(10);
+  
+  // Desabilitar busca quando não há termo
+  const shouldUseSearch = searchTerm.trim().length > 0;
+  
+  const { data: searchData, isLoading: loadingSearch, refetch: refetchSearch } = useSearchProducts(
+    shouldUseSearch ? { name: searchTerm, page, pageSize } : undefined
+  );
 
-      // Aplicar filtros no frontend (simples, pode ser movido para backend depois)
-      if (minPrice) {
-        const min = parseFloat(minPrice);
-        if (!isNaN(min)) {
-          filteredProducts = filteredProducts.filter(p => (p.price || 0) >= min);
-        }
-      }
-      if (maxPrice) {
-        const max = parseFloat(maxPrice);
-        if (!isNaN(max)) {
-          filteredProducts = filteredProducts.filter(p => (p.price || 0) <= max);
-        }
-      }
-      if (stockFilter === "low") {
-        filteredProducts = filteredProducts.filter(p => (p.stockQuantity || 0) < 10);
-      } else if (stockFilter === "normal") {
-        filteredProducts = filteredProducts.filter(p => (p.stockQuantity || 0) >= 10 && (p.stockQuantity || 0) > 0);
-      } else if (stockFilter === "out") {
-        filteredProducts = filteredProducts.filter(p => (p.stockQuantity || 0) === 0);
-      }
-
-      setProducts(filteredProducts);
-      setTotalPages(response.data.totalPages);
-      setTotalCount(response.data.totalCount);
-      
-      // Contar produtos com estoque baixo
-      const lowStock = filteredProducts.filter(p => (p.stockQuantity || 0) < 10).length;
-      setLowStockCount(lowStock);
-    } catch (error) {
-      console.error("Erro ao carregar produtos:", error);
-    } finally {
-      setLoading(false);
+  // Função para atualizar todos os dados
+  const handleRefresh = () => {
+    refetchProducts();
+    refetchCategories();
+    refetchLowStock();
+    if (shouldUseSearch) {
+      refetchSearch();
     }
-  }, [page, selectedCategory, minPrice, maxPrice, stockFilter]);
+  };
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const response = await api.get<Category[]>("/categories");
-      setCategories(response.data);
-    } catch (error) {
-      console.error("Erro ao carregar categorias:", error);
-    }
-  }, []);
+  const deleteProductMutation = useDeleteProduct();
+  const bulkDeleteMutation = useBulkDeleteProducts();
 
-  const fetchLowStockProducts = useCallback(async () => {
-    try {
-      const response = await api.get<Product[]>("/products/low-stock?threshold=10");
-      setLowStockCount(response.data.length);
-      
-      // Mostrar notificação se houver produtos com estoque baixo
-      if (response.data.length > 0) {
-        toast({
-          variant: "warning",
-          title: "Atenção: Estoque Baixo",
-          description: `${response.data.length} produto(s) com estoque abaixo de 10 unidades.`,
-          duration: 5000,
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao buscar produtos com estoque baixo:", error);
-    }
-  }, [toast]);
+  // Determinar qual fonte de dados usar
+  const sourceData = shouldUseSearch ? searchData : productsData;
+  const loading = shouldUseSearch ? loadingSearch : loadingProducts;
 
-  const searchProducts = useCallback(async () => {
-    if (!searchTerm.trim()) {
-      fetchProducts();
-      return;
-    }
+  // Aplicar filtros no frontend (preço e estoque)
+  const filteredProducts = sourceData?.items ? [...sourceData.items] : [];
+  let finalProducts = filteredProducts;
 
-    setLoading(true);
-    try {
-      const response = await api.get<PagedResult<Product>>(
-        `/products/search?name=${encodeURIComponent(searchTerm)}&page=${page}&pageSize=${pageSize}`
-      );
-      setProducts(response.data.items);
-      setTotalPages(response.data.totalPages);
-      setTotalCount(response.data.totalCount);
-    } catch (error) {
-      console.error("Erro ao pesquisar produtos:", error);
-    } finally {
-      setLoading(false);
+  if (minPrice) {
+    const min = parseFloat(minPrice);
+    if (!isNaN(min)) {
+      finalProducts = finalProducts.filter(p => (p.price || 0) >= min);
     }
-  }, [searchTerm, page, pageSize, fetchProducts]);
+  }
+  if (maxPrice) {
+    const max = parseFloat(maxPrice);
+    if (!isNaN(max)) {
+      finalProducts = finalProducts.filter(p => (p.price || 0) <= max);
+    }
+  }
+  if (stockFilter === "low") {
+    finalProducts = finalProducts.filter(p => (p.stockQuantity || 0) < 10);
+  } else if (stockFilter === "normal") {
+    finalProducts = finalProducts.filter(p => (p.stockQuantity || 0) >= 10 && (p.stockQuantity || 0) > 0);
+  } else if (stockFilter === "out") {
+    finalProducts = finalProducts.filter(p => (p.stockQuantity || 0) === 0);
+  }
+
+  const products = finalProducts;
+  const totalPages = sourceData?.totalPages || 1;
+  const totalCount = sourceData?.totalCount || 0;
+  const lowStockCount = lowStockProducts.length;
+
+  // Notificação de estoque baixo
+  useEffect(() => {
+    if (lowStockProducts.length > 0 && !keycloakLoading && isAuthenticated) {
+      toast({
+        variant: "warning",
+        title: "Atenção: Estoque Baixo",
+        description: `${lowStockProducts.length} produto(s) com estoque abaixo de 10 unidades.`,
+        duration: 5000,
+      });
+    }
+  }, [lowStockProducts.length, keycloakLoading, isAuthenticated, toast]);
 
   const handleDelete = async (id: string) => {
     try {
-      await api.delete(`/products/${id}`);
+      await deleteProductMutation.mutateAsync(id);
       toast({
         variant: "success",
         title: "Produto excluído!",
         description: "O produto foi excluído com sucesso.",
       });
-      fetchProducts();
     } catch (error: any) {
       console.error("Erro ao excluir produto:", error);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || "Ocorreu um erro ao excluir o produto.";
@@ -198,19 +177,13 @@ export default function ProductsPage() {
     if (selectedProducts.size === 0) return;
 
     try {
-      const deletePromises = Array.from(selectedProducts).map(id => 
-        api.delete(`/products/${id}`)
-      );
-      await Promise.all(deletePromises);
-      
+      await bulkDeleteMutation.mutateAsync(Array.from(selectedProducts));
       toast({
         variant: "success",
         title: "Produtos excluídos!",
         description: `${selectedProducts.size} produto(s) foram excluídos com sucesso.`,
       });
-      
       setSelectedProducts(new Set());
-      fetchProducts();
     } catch (error: any) {
       console.error("Erro ao excluir produtos em lote:", error);
       const errorMessage = error.response?.data?.error || error.response?.data?.message || "Ocorreu um erro ao excluir os produtos.";
@@ -341,22 +314,10 @@ export default function ProductsPage() {
     setPage(1);
   };
 
+  // Resetar página quando filtros mudarem
   useEffect(() => {
-    if (!keycloakLoading && isAuthenticated) {
-      fetchCategories();
-      fetchLowStockProducts();
-    }
-  }, [keycloakLoading, isAuthenticated, fetchCategories, fetchLowStockProducts]);
-
-  useEffect(() => {
-    if (!keycloakLoading && isAuthenticated) {
-      if (searchTerm.trim()) {
-        searchProducts();
-      } else {
-        fetchProducts();
-      }
-    }
-  }, [page, selectedCategory, minPrice, maxPrice, stockFilter, keycloakLoading, isAuthenticated, searchTerm, fetchProducts, searchProducts]);
+    setPage(1);
+  }, [selectedCategory, searchTerm, minPrice, maxPrice, stockFilter]);
 
   const getCategoryName = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId);
@@ -482,12 +443,11 @@ export default function ProductsPage() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => {
-                      clearFilters();
-                      fetchProducts();
-                    }}
+                    onClick={handleRefresh}
+                    disabled={loading}
+                    title="Atualizar dados"
                   >
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
               </div>
@@ -502,7 +462,11 @@ export default function ProductsPage() {
                       className="pl-9"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && searchProducts()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          // A busca é automática via React Query quando searchTerm muda
+                        }
+                      }}
                     />
                   </div>
                   <Select

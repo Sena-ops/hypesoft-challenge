@@ -10,14 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Save, RefreshCw } from "lucide-react";
-import { api } from "@/services/api";
 import { useToast } from "@/components/ui/use-toast";
 import { createCategorySchema, type CreateCategoryFormData } from "@/lib/validations/category";
 import Link from "next/link";
+import { useCreateCategory } from "@/hooks";
 
 export default function NewCategoryPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const createCategoryMutation = useCreateCategory();
   
   const {
     register,
@@ -30,7 +31,7 @@ export default function NewCategoryPage() {
 
   const onSubmit = async (data: CreateCategoryFormData) => {
     try {
-      await api.post("/categories", data);
+      await createCategoryMutation.mutateAsync(data);
       toast({
         variant: "success",
         title: "Categoria criada!",
@@ -107,13 +108,17 @@ export default function NewCategoryPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button type="submit" disabled={isSubmitting} className="gap-2">
-                  {isSubmitting ? (
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || createCategoryMutation.isPending} 
+                  className="gap-2"
+                >
+                  {isSubmitting || createCategoryMutation.isPending ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {isSubmitting ? "Salvando..." : "Salvar Categoria"}
+                  {isSubmitting || createCategoryMutation.isPending ? "Salvando..." : "Criar Categoria"}
                 </Button>
                 <Link href="/categories" className="w-full sm:w-auto">
                   <Button type="button" variant="outline" className="w-full sm:w-auto">
