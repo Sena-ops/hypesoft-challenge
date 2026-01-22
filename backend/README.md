@@ -2,14 +2,14 @@
 
 API REST em desenvolvimento com .NET 9 seguindo os princípios de Clean Architecture, DDD e CQRS.
 
-> **Status**: Estrutura inicial configurada - Funcionalidades em desenvolvimento
+> **Status**: Fase 4 Concluída - Autenticação e Dashboard implementados.
 
 ## ✅ O que já está implementado:
 
 - ✅ Estrutura de Clean Architecture (4 camadas)
-- ✅ Entidades de domínio (Product, Category)
-- ✅ Value Objects (Money)
-- ✅ Interfaces de repositórios
+- ✅ Entidades de domínio (Product, Category, User)
+- ✅ Autenticação JWT completa (Login, Registro)
+- ✅ Dashboard com estatísticas (Produtos, Estoque, Vendas)
 - ✅ Implementação dos repositórios MongoDB
 - ✅ Configuração do DbContext
 - ✅ Swagger/OpenAPI configurado
@@ -17,16 +17,6 @@ API REST em desenvolvimento com .NET 9 seguindo os princípios de Clean Architec
 - ✅ Logging estruturado (Serilog)
 - ✅ Rate limiting
 - ✅ CORS configurado
-
-## 🚧 Em Desenvolvimento:
-
-- ⏳ Commands e Queries (CQRS)
-- ⏳ Handlers do MediatR
-- ⏳ DTOs e AutoMapper
-- ⏳ Validações com FluentValidation
-- ⏳ Controllers da API
-- ⏳ Integração com Keycloak
-- ⏳ Testes automatizados
 
 ## 🏗️ Arquitetura
 
@@ -46,17 +36,23 @@ O projeto está organizado em 4 camadas principais:
 
 ### Desenvolvimento Local
 
-```bash
-# Restaurar dependências
-dotnet restore
+1. **Inicie o MongoDB** (se não tiver um rodando localmente):
+   ```bash
+   # Na raiz do projeto
+   docker-compose up -d mongodb
+   ```
 
-# Executar a API
-cd src/Nexus.API
-dotnet run
+2. **Execute a API**:
+   ```bash
+   cd src/Nexus.API
+   dotnet restore
+   dotnet run
+   ```
 
-# Ou executar de qualquer lugar
-dotnet run --project src/Nexus.API/Nexus.API.csproj
-```
+   Ou da raiz do backend:
+   ```bash
+   dotnet run --project src/Nexus.API/Nexus.API.csproj
+   ```
 
 ### Docker
 
@@ -69,8 +65,6 @@ docker run -p 5000:80 nexus-api
 ```
 
 ## 🧪 Testes
-
-> **Nota**: A estrutura de testes está configurada, mas os testes ainda serão implementados durante o desenvolvimento.
 
 ```bash
 # Executar todos os testes
@@ -85,14 +79,10 @@ dotnet test /p:CollectCoverage=true
 Quando a aplicação estiver rodando, acesse:
 - Swagger UI: http://localhost:5000/swagger
 
-> **Nota**: Atualmente apenas o Health Check está disponível. Os demais endpoints serão implementados conforme o desenvolvimento progride.
-
 ## 🔧 Configuração
 
 As configurações estão em `src/Nexus.API/appsettings.json` e `appsettings.Development.json`.
 
 Principais configurações:
 - **ConnectionStrings:MongoDB**: String de conexão com o MongoDB
-- **MongoDB:DatabaseName**: Nome do banco de dados
-- **Cors:AllowedOrigins**: Origens permitidas para CORS
-- **Keycloak**: Configurações de autenticação
+- **Jwt**: Configurações de Token (Key, Issuer, Audience)
