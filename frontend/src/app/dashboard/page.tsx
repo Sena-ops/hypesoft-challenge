@@ -8,6 +8,7 @@ import { SalesChart } from "@/components/charts";
 import { Package, DollarSign, AlertTriangle, Tags, RefreshCw } from "lucide-react";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/button";
+import { useKeycloak } from "@/stores/KeycloakContext";
 
 interface DashboardStats {
   totalProducts: number;
@@ -20,6 +21,7 @@ interface DashboardStats {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
 
   const fetchStats = async () => {
     setLoading(true);
@@ -34,8 +36,11 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
+    if (!keycloakLoading && isAuthenticated) {
+      fetchStats();
+    }
+  }, [keycloakLoading, isAuthenticated]);
 
   const categoryData =
     stats?.categoryStats?.map((category) => ({
@@ -48,20 +53,20 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">
               Visão geral do sistema de gestão de produtos
             </p>
           </div>
-          <Button variant="outline" className="gap-2" onClick={fetchStats} disabled={loading}>
+          <Button variant="outline" className="gap-2 w-full sm:w-auto" onClick={fetchStats} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
         </div>
 
-        {loading && !stats ? (
+        {(loading || keycloakLoading) && !stats ? (
           <div className="flex items-center justify-center h-64">
             <RefreshCw className="h-8 w-8 animate-spin text-primary" />
           </div>

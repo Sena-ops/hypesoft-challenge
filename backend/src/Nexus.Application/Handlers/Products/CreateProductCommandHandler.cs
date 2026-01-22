@@ -60,6 +60,12 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             request.Product.StockQuantity
         );
 
+        // Definir usuário criador se fornecido
+        if (!string.IsNullOrEmpty(request.UserId))
+        {
+            product.SetCreatedBy(request.UserId);
+        }
+
         // Salvar no repositório
         var createdProduct = await _productRepository.CreateAsync(product, cancellationToken);
 

@@ -50,6 +50,12 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, TokenService>();
 
+        // Keycloak Admin Service
+        services.AddHttpClient<Application.Interfaces.IKeycloakAdminService, Services.KeycloakAdminService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
         // Nota: A configuração de autenticação JWT/Keycloak está em AuthenticationExtensions.cs
         // para evitar duplicação de esquemas de autenticação
 

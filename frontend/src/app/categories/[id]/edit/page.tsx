@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,22 +12,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Save, RefreshCw, Tags } from "lucide-react";
 import { api } from "@/services/api";
-import { Category, UpdateCategoryDto } from "@/types";
+import { useToast } from "@/components/ui/use-toast";
+import { updateCategorySchema, type UpdateCategoryFormData } from "@/lib/validations/category";
+import { Category } from "@/types";
 import Link from "next/link";
 
 export default function EditCategoryPage() {
   const router = useRouter();
   const params = useParams();
   const categoryId = params.id as string;
+  const { toast } = useToast();
   
-  const [loading, setLoading] = useState(false);
-  const [loadingCategory, setLoadingCategory] = useState(true);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [notFound, setNotFound] = useState(false);
-  
-  const [formData, setFormData] = useState<UpdateCategoryDto>({
-    name: "",
-    description: "",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<UpdateCategoryFormData>({
+    resolver: zodResolver(updateCategorySchema),
+    mode: "onChange", // Validação em tempo real
   });
 
   useEffect(() => {
@@ -33,99 +38,49 @@ export default function EditCategoryPage() {
       try {
         const response = await api.get<Category>(`/categories/${categoryId}`);
         const category = response.data;
-        setFormData({
+        reset({
           name: category.name,
           description: category.description,
         });
       } catch (error: any) {
         console.error("Erro ao carregar categoria:", error);
         if (error.response?.status === 404) {
-          setNotFound(true);
+          toast({
+            variant: "error",
+            title: "Categoria não encontrada",
+            description: "A categoria que você está procurando não existe ou foi removida.",
+          });
         }
-      } finally {
-        setLoadingCategory(false);
       }
     };
 
-    fetchCategory();
-  }, [categoryId]);
-
-  const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name?.trim()) {
-      newErrors.name = "Nome é obrigatório";
+    if (categoryId) {
+      fetchCategory();
     }
+  }, [categoryId, reset, toast]);
 
-    if (!formData.description?.trim()) {
-      newErrors.description = "Descrição é obrigatória";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validate()) return;
-
-    setLoading(true);
+  const onSubmit = async (data: UpdateCategoryFormData) => {
     try {
-      await api.put(`/categories/${categoryId}`, formData);
+      await api.put(`/categories/${categoryId}`, data);
+      toast({
+        variant: "success",
+        title: "Categoria atualizada!",
+        description: "A categoria foi atualizada com sucesso.",
+      });
       router.push("/categories");
     } catch (error: any) {
       console.error("Erro ao atualizar categoria:", error);
-      if (error.response?.data?.error) {
-        setErrors({ submit: error.response.data.error });
-      } else {
-        setErrors({ submit: "Erro ao atualizar categoria. Tente novamente." });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (field: keyof UpdateCategoryDto, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => {
-        const { [field]: _, ...rest } = prev;
-        return rest;
+      toast({
+        variant: "error",
+        title: "Erro ao atualizar categoria",
+        description: error.response?.data?.error || "Ocorreu um erro ao atualizar a categoria. Tente novamente.",
       });
     }
   };
 
-  if (loadingCategory) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (notFound) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <Tags className="h-12 w-12 text-muted-foreground/50 mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Categoria não encontrada</h2>
-          <p className="text-muted-foreground mb-4">
-            A categoria que você está procurando não existe ou foi removida.
-          </p>
-          <Link href="/categories">
-            <Button>Voltar para categorias</Button>
-          </Link>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-6 max-w-2xl">
+      <div className="flex flex-col gap-6 max-w-2xl mx-auto">
         <div className="flex items-center gap-4">
           <Link href="/categories">
             <Button variant="ghost" size="icon">
@@ -148,18 +103,20 @@ export default function EditCategoryPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome *</Label>
                 <Input
                   id="name"
                   placeholder="Nome da categoria"
-                  value={formData.name || ""}
-                  onChange={(e) => handleChange("name", e.target.value)}
-                  className={errors.name ? "border-red-500" : ""}
+                  {...register("name")}
+                  className={errors.name ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  aria-invalid={errors.name ? "true" : "false"}
                 />
                 {errors.name && (
-                  <p className="text-sm text-red-500">{errors.name}</p>
+                  <p className="text-sm text-red-500" role="alert">
+                    {errors.name.message}
+                  </p>
                 )}
               </div>
 
@@ -168,33 +125,29 @@ export default function EditCategoryPage() {
                 <Textarea
                   id="description"
                   placeholder="Descrição da categoria"
-                  value={formData.description || ""}
-                  onChange={(e) => handleChange("description", e.target.value)}
-                  className={errors.description ? "border-red-500" : ""}
                   rows={4}
+                  {...register("description")}
+                  className={errors.description ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  aria-invalid={errors.description ? "true" : "false"}
                 />
                 {errors.description && (
-                  <p className="text-sm text-red-500">{errors.description}</p>
+                  <p className="text-sm text-red-500" role="alert">
+                    {errors.description.message}
+                  </p>
                 )}
               </div>
 
-              {errors.submit && (
-                <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-md text-sm">
-                  {errors.submit}
-                </div>
-              )}
-
-              <div className="flex gap-4">
-                <Button type="submit" disabled={loading} className="gap-2">
-                  {loading ? (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button type="submit" disabled={isSubmitting} className="gap-2">
+                  {isSubmitting ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {loading ? "Salvando..." : "Salvar Alterações"}
+                  {isSubmitting ? "Salvando..." : "Salvar Alterações"}
                 </Button>
-                <Link href="/categories">
-                  <Button type="button" variant="outline">
+                <Link href="/categories" className="w-full sm:w-auto">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto">
                     Cancelar
                   </Button>
                 </Link>

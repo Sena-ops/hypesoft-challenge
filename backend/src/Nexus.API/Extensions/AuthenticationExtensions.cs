@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -94,11 +95,36 @@ public static class AuthenticationExtensions
             options.AddPolicy("RequireAdmin", policy =>
                 policy.RequireRole("admin", "Admin"));
             
-            options.AddPolicy("RequireManager", policy =>
-                policy.RequireRole("manager", "Manager", "admin", "Admin"));
+            // Editor pode criar e editar (compatível com manager)
+            options.AddPolicy("RequireEditor", policy =>
+                policy.RequireRole("editor", "Editor", "manager", "Manager", "admin", "Admin"));
             
+            // Manager (compatibilidade - mesmo que editor)
+            // Usa RequireAssertion para verificação case-insensitive mais robusta
+            options.AddPolicy("RequireManager", policy =>
+                policy.RequireAssertion(context =>
+                {
+                    if (context.User?.Identity?.IsAuthenticated != true)
+                        return false;
+
+                    var roles = context.User.FindAll(System.Security.Claims.ClaimTypes.Role)
+                        .Select(c => c.Value)
+                        .ToList();
+
+                    // Verifica se o usuário tem uma das roles permitidas (case-insensitive)
+                    var allowedRoles = new[] { "editor", "manager", "admin" };
+                    return roles.Any(userRole => 
+                        allowedRoles.Any(allowed => 
+                            string.Equals(userRole, allowed, StringComparison.OrdinalIgnoreCase)));
+                }));
+            
+            // Leitor pode apenas visualizar (compatível com user)
+            options.AddPolicy("RequireLeitor", policy =>
+                policy.RequireRole("leitor", "Leitor", "editor", "Editor", "manager", "Manager", "admin", "Admin", "user", "User"));
+            
+            // User (compatibilidade - mesmo que leitor)
             options.AddPolicy("RequireUser", policy =>
-                policy.RequireRole("user", "User", "manager", "Manager", "admin", "Admin"));
+                policy.RequireRole("leitor", "Leitor", "user", "User", "editor", "Editor", "manager", "Manager", "admin", "Admin"));
         });
 
         return services;

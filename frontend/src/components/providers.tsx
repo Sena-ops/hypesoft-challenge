@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme-provider";
 import { KeycloakProvider } from "@/stores/KeycloakContext";
+import { ToastProvider } from "@/components/ui/toast";
 import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -26,7 +27,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        <KeycloakProvider>{children}</KeycloakProvider>
+        <KeycloakProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </KeycloakProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

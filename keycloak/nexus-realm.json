@@ -23,17 +23,27 @@
     "realm": [
       {
         "name": "admin",
-        "description": "Administrador do sistema - acesso total",
+        "description": "Administrador do sistema - acesso total, pode gerenciar permissões",
+        "composite": false
+      },
+      {
+        "name": "editor",
+        "description": "Editor - pode criar e editar produtos e categorias",
+        "composite": false
+      },
+      {
+        "name": "leitor",
+        "description": "Leitor - apenas visualização de produtos, categorias e dashboard",
         "composite": false
       },
       {
         "name": "manager",
-        "description": "Gerente - pode gerenciar produtos e categorias",
+        "description": "Gerente - pode gerenciar produtos e categorias (compatibilidade)",
         "composite": false
       },
       {
         "name": "user",
-        "description": "Usuário comum - apenas visualização",
+        "description": "Usuário comum - apenas visualização (compatibilidade)",
         "composite": false
       }
     ],
@@ -44,12 +54,20 @@
           "description": "Administrador do frontend"
         },
         {
+          "name": "editor",
+          "description": "Editor do frontend"
+        },
+        {
+          "name": "leitor",
+          "description": "Leitor do frontend"
+        },
+        {
           "name": "manager",
-          "description": "Gerente do frontend"
+          "description": "Gerente do frontend (compatibilidade)"
         },
         {
           "name": "user",
-          "description": "Usuário do frontend"
+          "description": "Usuário do frontend (compatibilidade)"
         }
       ],
       "nexus-api": [
@@ -58,17 +76,25 @@
           "description": "Administrador da API"
         },
         {
+          "name": "editor",
+          "description": "Editor da API"
+        },
+        {
+          "name": "leitor",
+          "description": "Leitor da API"
+        },
+        {
           "name": "manager",
-          "description": "Gerente da API"
+          "description": "Gerente da API (compatibilidade)"
         },
         {
           "name": "user",
-          "description": "Usuário da API"
+          "description": "Usuário da API (compatibilidade)"
         }
       ]
     }
   },
-  "defaultRoles": ["user"],
+  "defaultRoles": ["leitor", "user"],
   "clients": [
     {
       "clientId": "nexus-frontend",
@@ -160,10 +186,50 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["admin", "manager", "user"],
+      "realmRoles": ["admin", "editor", "leitor", "manager", "user"],
       "clientRoles": {
         "nexus-frontend": ["admin"],
         "nexus-api": ["admin"]
+      }
+    },
+    {
+      "username": "editor",
+      "email": "editor@nexus.local",
+      "firstName": "Editor",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "editor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["editor", "leitor"],
+      "clientRoles": {
+        "nexus-frontend": ["editor"],
+        "nexus-api": ["editor"]
+      }
+    },
+    {
+      "username": "leitor",
+      "email": "leitor@nexus.local",
+      "firstName": "Leitor",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "leitor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["leitor"],
+      "clientRoles": {
+        "nexus-frontend": ["leitor"],
+        "nexus-api": ["leitor"]
       }
     },
     {
@@ -180,10 +246,10 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["manager", "user"],
+      "realmRoles": ["editor", "leitor", "manager", "user"],
       "clientRoles": {
-        "nexus-frontend": ["manager"],
-        "nexus-api": ["manager"]
+        "nexus-frontend": ["editor", "manager"],
+        "nexus-api": ["editor", "manager"]
       }
     },
     {
@@ -200,21 +266,50 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"],
+      "realmRoles": ["leitor", "user"],
       "clientRoles": {
-        "nexus-frontend": ["user"],
-        "nexus-api": ["user"]
+        "nexus-frontend": ["leitor", "user"],
+        "nexus-api": ["leitor", "user"]
+      }
+    },
+    {
+      "username": "service-account-nexus-api",
+      "enabled": true,
+      "serviceAccountClientId": "nexus-api",
+      "realmRoles": ["offline_access", "uma_authorization"],
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "query-users",
+          "manage-users",
+          "view-realm",
+          "manage-realm"
+        ]
       }
     }
   ],
   "scopeMappings": [
     {
       "client": "nexus-frontend",
-      "roles": ["admin", "manager", "user"]
+      "roles": ["admin", "editor", "leitor", "manager", "user"]
     },
     {
       "client": "nexus-api",
-      "roles": ["admin", "manager", "user"]
+      "roles": ["admin", "editor", "leitor", "manager", "user"]
     }
-  ]
+  ],
+  "clientScopeMappings": {
+    "nexus-api": [
+      {
+        "client": "realm-management",
+        "roles": [
+          "realm-admin",
+          "manage-users",
+          "view-users",
+          "manage-realm",
+          "view-realm"
+        ]
+      }
+    ]
+  }
 }

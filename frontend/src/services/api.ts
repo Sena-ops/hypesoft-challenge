@@ -84,7 +84,14 @@ api.interceptors.response.use(
 
     // Se receber 403 (Forbidden), não redireciona, apenas retorna o erro
     if (error.response?.status === 403) {
-      console.warn("Acesso negado: permissão insuficiente");
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || "Acesso negado: permissão insuficiente";
+      console.warn("Acesso negado:", errorMessage);
+      console.warn("Detalhes:", {
+        status: error.response?.status,
+        path: error.config?.url,
+        method: error.config?.method,
+        data: error.response?.data
+      });
     }
 
     return Promise.reject(error);

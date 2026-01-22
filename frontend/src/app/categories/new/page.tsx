@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,68 +11,45 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Save, RefreshCw } from "lucide-react";
 import { api } from "@/services/api";
-import { CreateCategoryDto } from "@/types";
+import { useToast } from "@/components/ui/use-toast";
+import { createCategorySchema, type CreateCategoryFormData } from "@/lib/validations/category";
 import Link from "next/link";
 
 export default function NewCategoryPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { toast } = useToast();
   
-  const [formData, setFormData] = useState<CreateCategoryDto>({
-    name: "",
-    description: "",
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<CreateCategoryFormData>({
+    resolver: zodResolver(createCategorySchema),
+    mode: "onChange", // Validação em tempo real
   });
 
-  const validate = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Nome é obrigatório";
-    }
-
-    if (!formData.description.trim()) {
-      newErrors.description = "Descrição é obrigatória";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validate()) return;
-
-    setLoading(true);
+  const onSubmit = async (data: CreateCategoryFormData) => {
     try {
-      await api.post("/categories", formData);
+      await api.post("/categories", data);
+      toast({
+        variant: "success",
+        title: "Categoria criada!",
+        description: "A categoria foi criada com sucesso.",
+      });
       router.push("/categories");
     } catch (error: any) {
       console.error("Erro ao criar categoria:", error);
-      if (error.response?.data?.error) {
-        setErrors({ submit: error.response.data.error });
-      } else {
-        setErrors({ submit: "Erro ao criar categoria. Tente novamente." });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (field: keyof CreateCategoryDto, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => {
-        const { [field]: _, ...rest } = prev;
-        return rest;
+      toast({
+        variant: "error",
+        title: "Erro ao criar categoria",
+        description: error.response?.data?.error || "Ocorreu um erro ao criar a categoria. Tente novamente.",
       });
     }
   };
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-6 max-w-2xl">
+      <div className="flex flex-col gap-6 max-w-2xl mx-auto">
         <div className="flex items-center gap-4">
           <Link href="/categories">
             <Button variant="ghost" size="icon">
@@ -94,18 +72,20 @@ export default function NewCategoryPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome *</Label>
                 <Input
                   id="name"
                   placeholder="Nome da categoria"
-                  value={formData.name}
-                  onChange={(e) => handleChange("name", e.target.value)}
-                  className={errors.name ? "border-red-500" : ""}
+                  {...register("name")}
+                  className={errors.name ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  aria-invalid={errors.name ? "true" : "false"}
                 />
                 {errors.name && (
-                  <p className="text-sm text-red-500">{errors.name}</p>
+                  <p className="text-sm text-red-500" role="alert">
+                    {errors.name.message}
+                  </p>
                 )}
               </div>
 
@@ -114,33 +94,29 @@ export default function NewCategoryPage() {
                 <Textarea
                   id="description"
                   placeholder="Descrição da categoria"
-                  value={formData.description}
-                  onChange={(e) => handleChange("description", e.target.value)}
-                  className={errors.description ? "border-red-500" : ""}
                   rows={4}
+                  {...register("description")}
+                  className={errors.description ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  aria-invalid={errors.description ? "true" : "false"}
                 />
                 {errors.description && (
-                  <p className="text-sm text-red-500">{errors.description}</p>
+                  <p className="text-sm text-red-500" role="alert">
+                    {errors.description.message}
+                  </p>
                 )}
               </div>
 
-              {errors.submit && (
-                <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-md text-sm">
-                  {errors.submit}
-                </div>
-              )}
-
-              <div className="flex gap-4">
-                <Button type="submit" disabled={loading} className="gap-2">
-                  {loading ? (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button type="submit" disabled={isSubmitting} className="gap-2">
+                  {isSubmitting ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {loading ? "Salvando..." : "Salvar Categoria"}
+                  {isSubmitting ? "Salvando..." : "Salvar Categoria"}
                 </Button>
-                <Link href="/categories">
-                  <Button type="button" variant="outline">
+                <Link href="/categories" className="w-full sm:w-auto">
+                  <Button type="button" variant="outline" className="w-full sm:w-auto">
                     Cancelar
                   </Button>
                 </Link>

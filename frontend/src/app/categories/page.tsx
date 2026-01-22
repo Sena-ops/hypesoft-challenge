@@ -32,11 +32,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks";
 import { useKeycloak } from "@/stores/KeycloakContext";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function CategoriesPage() {
   const router = useRouter();
   const permissions = usePermissions();
   const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
+  const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,14 +62,29 @@ export default function CategoriesPage() {
     setDeleteError(null);
     try {
       await api.delete(`/categories/${id}`);
+      toast({
+        variant: "success",
+        title: "Categoria excluída!",
+        description: "A categoria foi excluída com sucesso.",
+      });
       fetchCategories();
     } catch (error: any) {
       console.error("Erro ao excluir categoria:", error);
-      if (error.response?.data?.error) {
-        setDeleteError(error.response.data.error);
-      } else {
-        setDeleteError("Erro ao excluir categoria. Verifique se não há produtos vinculados.");
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || "Erro ao excluir categoria.";
+      
+      let description = errorMessage;
+      if (error.response?.status === 403) {
+        description = "Você não tem permissão para excluir categorias. Se você tem a role 'editor', tente fazer logout e login novamente para atualizar suas permissões.";
+      } else if (errorMessage.includes("produtos vinculados")) {
+        description = errorMessage;
       }
+      
+      setDeleteError(description);
+      toast({
+        variant: "error",
+        title: "Erro ao excluir categoria",
+        description,
+      });
     }
   };
 
@@ -75,6 +92,20 @@ export default function CategoriesPage() {
     // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
     if (!keycloakLoading && isAuthenticated) {
       fetchCategories();
+      
+      // Debug: verificar roles do usuário
+      api.get("/debug/me")
+        .then(response => {
+          console.log("Roles do usuário:", response.data.roles);
+          console.log("Todas as claims:", response.data.allClaims);
+          if (!response.data.roles.includes("editor") && !response.data.roles.includes("Editor")) {
+            console.warn("⚠️ Role 'editor' não encontrada nas roles do usuário!");
+            console.warn("Roles disponíveis:", response.data.roles);
+          }
+        })
+        .catch(err => {
+          console.warn("Erro ao verificar roles:", err);
+        });
     }
   }, [keycloakLoading, isAuthenticated, fetchCategories]);
 
@@ -102,7 +133,7 @@ export default function CategoriesPage() {
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Categorias</h1>
             <p className="text-muted-foreground">
@@ -137,13 +168,13 @@ export default function CategoriesPage() {
               <CardTitle className="text-base font-semibold">
                 Lista de Categorias ({filteredCategories.length})
               </CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="relative">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative flex-1 sm:flex-initial">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
                     placeholder="Buscar categoria..."
-                    className="pl-9 w-full md:w-[250px]"
+                    className="pl-9 w-full sm:w-[250px]"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -155,6 +186,7 @@ export default function CategoriesPage() {
                     setSearchTerm("");
                     fetchCategories();
                   }}
+                  className="sm:w-auto"
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
@@ -184,27 +216,38 @@ export default function CategoriesPage() {
                 )}
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Criada em</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCategories.map((category) => (
-                    <TableRow key={category.id}>
-                      <TableCell className="font-medium">{category.name}</TableCell>
-                      <TableCell className="max-w-md">
-                        <p className="line-clamp-2 text-muted-foreground">
-                          {category.description}
-                        </p>
-                      </TableCell>
-                      <TableCell>{formatDate(category.createdAt)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead className="hidden sm:table-cell">Descrição</TableHead>
+                      <TableHead className="hidden md:table-cell">Criada em</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCategories.map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col gap-1">
+                            <span>{category.name}</span>
+                            <span className="text-xs text-muted-foreground sm:hidden">
+                              {category.description}
+                            </span>
+                            <span className="text-xs text-muted-foreground md:hidden">
+                              {formatDate(category.createdAt)}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell max-w-md">
+                          <p className="line-clamp-2 text-muted-foreground">
+                            {category.description}
+                          </p>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{formatDate(category.createdAt)}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
                           {permissions.canEdit && (
                             <Button
                               variant="ghost"
@@ -242,12 +285,13 @@ export default function CategoriesPage() {
                               </AlertDialogContent>
                             </AlertDialog>
                           )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

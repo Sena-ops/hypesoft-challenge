@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Nexus.API.Controllers;
@@ -17,5 +18,19 @@ public abstract class BaseController : ControllerBase
     protected IActionResult HandleError(string message, int statusCode = 400)
     {
         return StatusCode(statusCode, new { error = message });
+    }
+
+    protected string? GetCurrentUserId()
+    {
+        return User?.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+            ?? User?.FindFirst("sub")?.Value 
+            ?? User?.Identity?.Name;
+    }
+
+    protected string? GetCurrentUsername()
+    {
+        return User?.FindFirst(ClaimTypes.Name)?.Value 
+            ?? User?.FindFirst("preferred_username")?.Value 
+            ?? User?.Identity?.Name;
     }
 }
