@@ -73,6 +73,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Middleware de monitoramento de performance (primeiro para medir tempo total)
+app.UsePerformanceMonitoring(thresholdMs: 500);
+
 app.UseHttpsRedirection();
 
 app.UseCors();

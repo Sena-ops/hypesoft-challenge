@@ -20,15 +20,14 @@ public class GetAllProductsQueryHandler : IRequestHandler<GetAllProductsQuery, P
 
     public async Task<PagedResultDto<ProductDto>> Handle(GetAllProductsQuery request, CancellationToken cancellationToken)
     {
-        var products = await _productRepository.GetAllAsync(cancellationToken);
-        var totalCount = products.Count();
+        // Usa paginação diretamente no banco de dados (muito mais eficiente para grandes volumes)
+        var (products, totalCount) = await _productRepository.GetPagedAsync(
+            request.Page, 
+            request.PageSize, 
+            request.CategoryId,
+            cancellationToken);
 
-        var pagedProducts = products
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToList();
-
-        var productDtos = _mapper.Map<IEnumerable<ProductDto>>(pagedProducts);
+        var productDtos = _mapper.Map<IEnumerable<ProductDto>>(products);
 
         return new PagedResultDto<ProductDto>
         {

@@ -1,5 +1,7 @@
 using MediatR;
 using Nexus.Application.Commands.Categories;
+using Nexus.Application.Common;
+using Nexus.Application.Interfaces;
 using Nexus.Domain.Repositories;
 
 namespace Nexus.Application.Handlers.Categories;
@@ -8,13 +10,16 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
 {
     private readonly ICategoryRepository _categoryRepository;
     private readonly IProductRepository _productRepository;
+    private readonly ICacheService _cacheService;
 
     public DeleteCategoryCommandHandler(
         ICategoryRepository categoryRepository,
-        IProductRepository productRepository)
+        IProductRepository productRepository,
+        ICacheService cacheService)
     {
         _categoryRepository = categoryRepository;
         _productRepository = productRepository;
+        _cacheService = cacheService;
     }
 
     public async Task Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)
@@ -33,5 +38,9 @@ public class DeleteCategoryCommandHandler : IRequestHandler<DeleteCategoryComman
 
         // Excluir (Soft Delete)
         await _categoryRepository.DeleteAsync(request.Id, cancellationToken);
+
+        // Invalidar cache
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.CategoriesPrefix, cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.DashboardPrefix, cancellationToken);
     }
 }
