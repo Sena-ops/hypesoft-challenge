@@ -1,4 +1,6 @@
+using System.Text.RegularExpressions;
 using MongoDB.Driver;
+using Nexus.Application.Common;
 using Nexus.Domain.Entities;
 using Nexus.Domain.Repositories;
 using Nexus.Infrastructure.Data;
@@ -16,6 +18,12 @@ public class ProductRepository : IProductRepository
 
     public async Task<Product?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
+        // Valida e sanitiza o ID para prevenir injection
+        if (string.IsNullOrWhiteSpace(id) || !InputSanitizer.IsSafeForMongoDb(id))
+        {
+            return null;
+        }
+
         return await _collection
             .Find(p => p.Id == id && !p.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
@@ -30,6 +38,12 @@ public class ProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> GetByCategoryIdAsync(string categoryId, CancellationToken cancellationToken = default)
     {
+        // Valida e sanitiza o ID da categoria para prevenir injection
+        if (string.IsNullOrWhiteSpace(categoryId) || !InputSanitizer.IsSafeForMongoDb(categoryId))
+        {
+            return Enumerable.Empty<Product>();
+        }
+
         return await _collection
             .Find(p => p.CategoryId == categoryId && !p.IsDeleted)
             .ToListAsync(cancellationToken);
@@ -37,9 +51,20 @@ public class ProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> SearchByNameAsync(string searchTerm, CancellationToken cancellationToken = default)
     {
+        // Sanitiza o termo de busca para prevenir injection
+        var sanitizedTerm = InputSanitizer.SanitizeForMongoDb(searchTerm);
+        
+        if (string.IsNullOrWhiteSpace(sanitizedTerm))
+        {
+            return Enumerable.Empty<Product>();
+        }
+
+        // Escapa caracteres especiais do regex para busca segura
+        var escapedTerm = Regex.Escape(sanitizedTerm);
+        
         var filter = Builders<Product>.Filter.Regex(
             p => p.Name, 
-            new MongoDB.Bson.BsonRegularExpression(searchTerm, "i")
+            new MongoDB.Bson.BsonRegularExpression(escapedTerm, "i")
         ) & Builders<Product>.Filter.Eq(p => p.IsDeleted, false);
 
         return await _collection
@@ -108,7 +133,12 @@ public class ProductRepository : IProductRepository
         
         if (!string.IsNullOrEmpty(categoryId))
         {
-            filter &= filterBuilder.Eq(p => p.CategoryId, categoryId);
+            // Sanitiza o categoryId para prevenir injection
+            var sanitizedCategoryId = InputSanitizer.SanitizeForMongoDb(categoryId);
+            if (!string.IsNullOrWhiteSpace(sanitizedCategoryId))
+            {
+                filter &= filterBuilder.Eq(p => p.CategoryId, sanitizedCategoryId);
+            }
         }
 
         // Executa contagem e busca em paralelo para melhor performance
@@ -134,9 +164,20 @@ public class ProductRepository : IProductRepository
         int pageSize, 
         CancellationToken cancellationToken = default)
     {
+        // Sanitiza o termo de busca para prevenir injection
+        var sanitizedTerm = InputSanitizer.SanitizeForMongoDb(searchTerm);
+        
+        if (string.IsNullOrWhiteSpace(sanitizedTerm))
+        {
+            return (Enumerable.Empty<Product>(), 0);
+        }
+
+        // Escapa caracteres especiais do regex para busca segura
+        var escapedTerm = Regex.Escape(sanitizedTerm);
+        
         var filter = Builders<Product>.Filter.Regex(
             p => p.Name, 
-            new MongoDB.Bson.BsonRegularExpression(searchTerm, "i")
+            new MongoDB.Bson.BsonRegularExpression(escapedTerm, "i")
         ) & Builders<Product>.Filter.Eq(p => p.IsDeleted, false);
 
         // Executa contagem e busca em paralelo

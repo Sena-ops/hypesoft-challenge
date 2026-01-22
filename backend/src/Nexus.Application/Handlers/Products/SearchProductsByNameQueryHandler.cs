@@ -31,15 +31,14 @@ public class SearchProductsByNameQueryHandler : IRequestHandler<SearchProductsBy
             };
         }
 
-        var products = await _productRepository.SearchByNameAsync(request.SearchTerm, cancellationToken);
-        var totalCount = products.Count();
+        // Usa método paginado do repositório (já sanitiza internamente)
+        var (products, totalCount) = await _productRepository.SearchByNamePagedAsync(
+            request.SearchTerm,
+            request.Page,
+            request.PageSize,
+            cancellationToken);
 
-        var pagedProducts = products
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
-            .ToList();
-
-        var productDtos = _mapper.Map<IEnumerable<ProductDto>>(pagedProducts);
+        var productDtos = _mapper.Map<IEnumerable<ProductDto>>(products);
 
         return new PagedResultDto<ProductDto>
         {

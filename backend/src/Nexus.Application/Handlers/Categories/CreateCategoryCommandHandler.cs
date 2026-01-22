@@ -27,8 +27,18 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
 
     public async Task<CategoryDto> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
     {
-        // Criar entidade
-        var category = new Category(request.Category.Name, request.Category.Description);
+        // Sanitiza inputs para prevenir XSS e injection
+        var sanitizedName = InputSanitizer.Sanitize(request.Category.Name);
+        var sanitizedDescription = InputSanitizer.Sanitize(request.Category.Description);
+
+        // Valida se o nome sanitizado não ficou vazio
+        if (string.IsNullOrWhiteSpace(sanitizedName))
+        {
+            throw new ArgumentException("O nome da categoria não pode ser vazio após sanitização.", nameof(request.Category.Name));
+        }
+
+        // Criar entidade com dados sanitizados
+        var category = new Category(sanitizedName, sanitizedDescription);
 
         // Salvar
         var createdCategory = await _categoryRepository.CreateAsync(category, cancellationToken);

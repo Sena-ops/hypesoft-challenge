@@ -31,9 +31,13 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
         if (category == null)
             throw new KeyNotFoundException($"Categoria com ID '{request.Id}' não encontrada.");
 
-        // Atualizar usando métodos de domínio
-        category.UpdateName(request.Category.Name);
-        category.UpdateDescription(request.Category.Description);
+        // Sanitiza inputs para prevenir XSS e injection
+        var sanitizedName = InputSanitizer.Sanitize(request.Category.Name);
+        var sanitizedDescription = InputSanitizer.Sanitize(request.Category.Description);
+
+        // Atualizar usando métodos de domínio com dados sanitizados
+        category.UpdateName(sanitizedName);
+        category.UpdateDescription(sanitizedDescription);
 
         // Salvar
         var updatedCategory = await _categoryRepository.UpdateAsync(category, cancellationToken);

@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using Nexus.Application.Common;
 using Nexus.Domain.Entities;
 using Nexus.Domain.Repositories;
 using Nexus.Infrastructure.Data;
@@ -16,6 +17,12 @@ public class CategoryRepository : ICategoryRepository
 
     public async Task<Category?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
+        // Valida e sanitiza o ID para prevenir injection
+        if (string.IsNullOrWhiteSpace(id) || !InputSanitizer.IsSafeForMongoDb(id))
+        {
+            return null;
+        }
+
         return await _collection
             .Find(c => c.Id == id && !c.IsDeleted)
             .FirstOrDefaultAsync(cancellationToken);
@@ -56,6 +63,12 @@ public class CategoryRepository : ICategoryRepository
 
     public async Task<bool> ExistsAsync(string id, CancellationToken cancellationToken = default)
     {
+        // Valida e sanitiza o ID para prevenir injection
+        if (string.IsNullOrWhiteSpace(id) || !InputSanitizer.IsSafeForMongoDb(id))
+        {
+            return false;
+        }
+
         return await _collection
             .CountDocumentsAsync(c => c.Id == id && !c.IsDeleted, cancellationToken: cancellationToken) > 0;
     }

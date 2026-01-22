@@ -73,6 +73,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Security Headers - deve ser um dos primeiros middlewares
+app.UseSecurityHeaders();
+
 // Middleware de monitoramento de performance (primeiro para medir tempo total)
 app.UsePerformanceMonitoring(thresholdMs: 500);
 

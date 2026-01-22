@@ -39,10 +39,12 @@ import { Product, Category, PagedResult } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks";
+import { useKeycloak } from "@/stores/KeycloakContext";
 
 export default function ProductsPage() {
   const router = useRouter();
   const permissions = usePermissions();
+  const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,16 +75,16 @@ export default function ProductsPage() {
     }
   }, [page, selectedCategory]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await api.get<Category[]>("/categories");
       setCategories(response.data);
     } catch (error) {
       console.error("Erro ao carregar categorias:", error);
     }
-  };
+  }, []);
 
-  const searchProducts = async () => {
+  const searchProducts = useCallback(async () => {
     if (!searchTerm.trim()) {
       fetchProducts();
       return;
@@ -101,7 +103,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, page, pageSize, fetchProducts]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -113,16 +115,22 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
+    if (!keycloakLoading && isAuthenticated) {
+      fetchCategories();
+    }
+  }, [keycloakLoading, isAuthenticated, fetchCategories]);
 
   useEffect(() => {
-    if (searchTerm.trim()) {
-      searchProducts();
-    } else {
-      fetchProducts();
+    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar produtos
+    if (!keycloakLoading && isAuthenticated) {
+      if (searchTerm.trim()) {
+        searchProducts();
+      } else {
+        fetchProducts();
+      }
     }
-  }, [page, selectedCategory, fetchProducts]);
+  }, [page, selectedCategory, keycloakLoading, isAuthenticated, searchTerm, fetchProducts, searchProducts]);
 
   const getCategoryName = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId);
@@ -224,7 +232,7 @@ export default function ProductsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {loading || keycloakLoading ? (
               <div className="flex items-center justify-center h-64">
                 <RefreshCw className="h-8 w-8 animate-spin text-primary" />
               </div>
