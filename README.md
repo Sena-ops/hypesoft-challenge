@@ -46,7 +46,7 @@ Sistema completo de gestão de produtos desenvolvido com **.NET 9** e **Next.js 
 
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/hypesoft-challenge.git
+git clone https://github.com/Sena-ops/hypesoft-challenge.git
 cd hypesoft-challenge
 
 # (Opcional) Para produção ou customização, copie e ajuste as variáveis de ambiente
