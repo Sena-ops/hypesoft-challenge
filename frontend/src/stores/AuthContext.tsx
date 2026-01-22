@@ -14,6 +14,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
 }
@@ -21,6 +22,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
+  isLoading: true,
   login: () => {},
   logout: () => {},
 });
@@ -29,23 +31,37 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
+    const loadAuthFromStorage = () => {
+      try {
+        const token = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("user");
 
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-      api.defaults.headers.Authorization = `Bearer ${token}`;
-    }
+        if (token && storedUser) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error("Erro ao carregar autenticação:", error);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAuthFromStorage();
   }, []);
 
   const login = (token: string, userData: User) => {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(userData));
     setUser(userData);
-    api.defaults.headers.Authorization = `Bearer ${token}`;
+    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     router.push("/dashboard");
   };
 
@@ -53,7 +69,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
-    api.defaults.headers.Authorization = "";
+    delete api.defaults.headers.common["Authorization"];
     router.push("/auth/login");
   };
 
@@ -62,6 +78,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         isAuthenticated: !!user,
+        isLoading,
         login,
         logout,
       }}

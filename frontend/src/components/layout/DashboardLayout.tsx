@@ -3,23 +3,35 @@
 import { useAuth } from "@/stores/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { redirect } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { RefreshCw } from "lucide-react";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  const [mounted, setMounted] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    if (!isLoading && !isAuthenticated) {
+      router.push("/auth/login");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
-  if (mounted && !isAuthenticated) {
-    redirect("/auth/login");
+  // Mostra loading enquanto verifica autenticação
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50/50 dark:bg-gray-900/50">
+        <div className="flex flex-col items-center gap-4">
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!mounted) {
-    return null; 
+  // Se não está autenticado, não renderiza nada (vai redirecionar)
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (

@@ -10,8 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Filter } from "lucide-react";
+import { Tags, BarChart3 } from "lucide-react";
 
 interface CategoryPoint {
   name: string;
@@ -24,64 +23,70 @@ interface SalesChartProps {
 
 export function SalesChart({ data }: SalesChartProps) {
   return (
-    <Card className="col-span-4">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-base font-semibold">
-            Produtos por categoria
-          </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            Distribuicao de itens cadastrados por categoria
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8 text-xs">
-            Weekly
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 text-xs gap-1">
-            <Filter className="h-3 w-3" />
-            Filter
-          </Button>
+        <div className="flex items-center gap-2">
+          <Tags className="h-5 w-5 text-primary" />
+          <div>
+            <CardTitle className="text-base font-semibold">
+              Produtos por Categoria
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Distribuição de produtos cadastrados por categoria
+            </p>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pl-0">
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "#6B7280", fontSize: 12 }}
-                dy={8}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: "#6B7280", fontSize: 12 }}
-                dx={-8}
-                allowDecimals={false}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1F2937",
-                  border: "none",
-                  borderRadius: "8px",
-                  color: "#fff",
-                }}
-              />
-              <Bar
-                dataKey="count"
-                radius={[8, 8, 0, 0]}
-                fill="#7c3aed"
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {data.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center h-[300px]">
+            <BarChart3 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground">
+              Nenhuma categoria cadastrada
+            </p>
+          </div>
+        ) : (
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data}
+                margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "currentColor", fontSize: 12 }}
+                  dy={8}
+                  className="text-muted-foreground"
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "currentColor", fontSize: 12 }}
+                  dx={-8}
+                  allowDecimals={false}
+                  className="text-muted-foreground"
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    color: "hsl(var(--foreground))",
+                  }}
+                  formatter={(value: number) => [`${value} produtos`, "Quantidade"]}
+                />
+                <Bar
+                  dataKey="count"
+                  radius={[8, 8, 0, 0]}
+                  fill="hsl(var(--primary))"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
