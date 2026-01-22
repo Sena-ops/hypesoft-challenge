@@ -21,6 +21,9 @@ public static class DependencyInjection
         // Configurar índices do MongoDB para otimização de queries
         services.AddHostedService<MongoDbIndexInitializer>();
         
+        // Database Seeder (executa após os índices)
+        services.AddHostedService<DatabaseSeeder>();
+        
         // Redis Cache - Distribuído para escalabilidade horizontal
         var redisConnectionString = configuration.GetConnectionString("Redis") 
             ?? configuration["Redis:ConnectionString"] 

@@ -8,7 +8,7 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_DATABASE: nexus
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-nexus}
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -27,10 +27,11 @@ services:
       - "8081:8081"
     environment:
       ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
-      ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: admin
+      ME_CONFIG_BASICAUTH_USERNAME: ${ME_CONFIG_BASICAUTH_USERNAME:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_CONFIG_BASICAUTH_PASSWORD:-admin}
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
       - nexus-network
 
@@ -41,13 +42,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_DB: postgres
       KC_DB_URL_HOST: keycloak-db
-      KC_DB_URL_DATABASE: keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: keycloak
+      KC_DB_URL_DATABASE: ${KEYCLOAK_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
       KC_HOSTNAME_STRICT: false
       KC_HOSTNAME_STRICT_HTTPS: false
       KC_HTTP_ENABLED: true
@@ -56,7 +57,8 @@ services:
       - ./keycloak/nexus-realm.json:/opt/keycloak/data/import/nexus-realm.json:ro
     command: start-dev --import-realm
     depends_on:
-      - keycloak-db
+      keycloak-db:
+        condition: service_healthy
     networks:
       - nexus-network
     healthcheck:
@@ -64,15 +66,16 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 60s
 
   keycloak-db:
     image: postgres:16-alpine
     container_name: nexus-keycloak-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak
+      POSTGRES_DB: ${KEYCLOAK_DB_NAME:-keycloak}
+      POSTGRES_USER: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
     volumes:
       - keycloak_db_data:/var/lib/postgresql/data
     networks:
@@ -109,13 +112,14 @@ services:
     ports:
       - "5000:80"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__MongoDB: mongodb://mongodb:27017
-      ConnectionStrings__Redis: redis:6379
-      MongoDB__DatabaseName: nexus
-      Cors__AllowedOrigins: http://localhost:3000
-      Keycloak__Authority: http://keycloak:8080/realms/nexus
-      Keycloak__Audience: nexus-api
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__MongoDB: ${MONGODB_CONNECTION_STRING:-mongodb://mongodb:27017}
+      ConnectionStrings__Redis: ${REDIS_CONNECTION_STRING:-redis:6379}
+      MongoDB__DatabaseName: ${MONGODB_DATABASE_NAME:-nexus}
+      Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://keycloak:8080/realms/nexus}
+      Keycloak__Audience: ${KEYCLOAK_AUDIENCE:-nexus-api}
+      SEED_DATABASE: ${SEED_DATABASE:-true}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -126,10 +130,11 @@ services:
     networks:
       - nexus-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
 
   frontend:
     build:
@@ -140,14 +145,20 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:5000
-      NEXT_PUBLIC_KEYCLOAK_URL: http://localhost:8080
-      NEXT_PUBLIC_KEYCLOAK_REALM: nexus
-      NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: nexus-frontend
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+      NEXT_PUBLIC_KEYCLOAK_URL: ${NEXT_PUBLIC_KEYCLOAK_URL:-http://localhost:8080}
+      NEXT_PUBLIC_KEYCLOAK_REALM: ${NEXT_PUBLIC_KEYCLOAK_REALM:-nexus}
+      NEXT_PUBLIC_KEYCLOAK_CLIENT_ID: ${NEXT_PUBLIC_KEYCLOAK_CLIENT_ID:-nexus-frontend}
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - nexus-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   nginx:
     image: nginx:alpine

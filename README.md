@@ -1,8 +1,8 @@
 # Nexus - Sistema de Gestão de Produtos
 
-Sistema de gestão de produtos em desenvolvimento com **.NET 9** e **Next.js 14**, seguindo os princípios de Clean Architecture, DDD e CQRS.
+Sistema completo de gestão de produtos desenvolvido com **.NET 9** e **Next.js 14**, seguindo os princípios de Clean Architecture, DDD e CQRS.
 
-> **Nota**: Este projeto está em fase inicial de desenvolvimento. A estrutura base foi configurada e as funcionalidades estão sendo implementadas progressivamente.
+> **Status**: ✅ Projeto Completo - Todas as funcionalidades implementadas e testadas.
 
 ## 🚀 Tecnologias
 
@@ -15,11 +15,12 @@ Sistema de gestão de produtos em desenvolvimento com **.NET 9** e **Next.js 14*
 - **AutoMapper** para mapeamento
 - **Serilog** para logging estruturado
 - **Swagger/OpenAPI** para documentação
+- **Keycloak** para autenticação e autorização
 
 ### Frontend
 - **Next.js 14** (App Router) com TypeScript
 - **TailwindCSS** + **Shadcn/ui** para estilização
-- **TanStack Query** para gerenciamento de estado
+- **TanStack Query (React Query)** para gerenciamento de estado
 - **React Hook Form** + **Zod** para validação
 - **Recharts** para dashboards
 - **Vitest** + **React Testing Library** para testes
@@ -27,95 +28,127 @@ Sistema de gestão de produtos em desenvolvimento com **.NET 9** e **Next.js 14*
 ### Infraestrutura
 - **MongoDB** como banco principal
 - **Keycloak** para autenticação e autorização
+- **Redis** para cache
+- **PostgreSQL** para Keycloak
 - **Docker** + **Docker Compose** para containerização
 - **Nginx** como reverse proxy
 
 ## 📋 Pré-requisitos
 
 - Docker Desktop 4.0+
-- Node.js 18+
-- .NET 9 SDK
 - Git
+
+> **Nota**: Não é necessário ter Node.js ou .NET SDK instalados localmente, pois tudo roda via Docker.
 
 ## 🛠️ Instalação e Execução
 
-### Executando com Docker Compose
+### Executando com Docker Compose (Recomendado)
 
 ```bash
 # Clone o repositório
-git clone <repository-url>
-cd nexus
+git clone https://github.com/seu-usuario/hypesoft-challenge.git
+cd hypesoft-challenge
 
-# Copie as variáveis de ambiente
-cp .env.example .env
+# (Opcional) Para produção ou customização, copie e ajuste as variáveis de ambiente
+# cp .env.example .env
+# Edite o arquivo .env com seus valores personalizados
 
 # Execute toda a aplicação com Docker Compose
+# O docker-compose.yml já possui valores padrão, então funciona sem .env
 docker-compose up -d
 
 # Aguarde alguns segundos para os serviços iniciarem
 # Verifique se todos os containers estão rodando
 docker-compose ps
+
+# O banco de dados será populado automaticamente com dados de exemplo na primeira execução
 ```
 
 ### URLs de Acesso
 
+Após iniciar os containers, acesse:
+
 - **Frontend**: http://localhost:3000
-- **API**: http://localhost:5000
+- **API**: http://localhost:5000/api
 - **Swagger**: http://localhost:5000/swagger
 - **MongoDB Express**: http://localhost:8081
 - **Keycloak**: http://localhost:8080
 - **Nginx (Reverse Proxy)**: http://localhost
 
-> **Nota**: Atualmente apenas o Health Check está disponível na API. Os demais endpoints serão implementados conforme o desenvolvimento progride.
+### Credenciais Padrão
 
-### Desenvolvimento Local
+#### Keycloak Admin Console
+- **URL**: http://localhost:8080
+- **Usuário**: `admin`
+- **Senha**: `admin`
 
-#### Backend
+#### MongoDB Express
+- **URL**: http://localhost:8081
+- **Usuário**: `admin`
+- **Senha**: `admin`
 
-```bash
-cd backend
+#### Usuários de Teste (Keycloak)
+O sistema vem pré-configurado com usuários de teste:
+- **Admin**: `admin@nexus.com` / `admin123`
+- **Editor**: `editor@nexus.com` / `editor123`
+- **Leitor**: `leitor@nexus.com` / `leitor123`
 
-# Restaurar dependências
-dotnet restore
+#### Dados de Exemplo
+O banco de dados é populado automaticamente com:
+- **8 categorias** de exemplo (Eletrônicos, Roupas, Casa e Jardim, Esportes, Livros, Alimentos, Beleza, Brinquedos)
+- **40+ produtos** de exemplo distribuídos nas categorias
+- Alguns produtos com **estoque baixo** (< 10 unidades) para demonstrar a funcionalidade do dashboard
 
-# Executar a API
-cd src/Nexus.API
-dotnet run
+## ✅ Funcionalidades Implementadas
 
-# Ou executar todos os projetos
-cd ../..
-dotnet run --project src/Nexus.API/Nexus.API.csproj
-```
+### Gestão de Produtos
+- ✅ Criar, listar, editar e excluir produtos
+- ✅ Busca por nome do produto
+- ✅ Filtros por categoria, preço e estoque
+- ✅ Paginação eficiente
+- ✅ Validação completa de dados
+- ✅ Controle de estoque
+- ✅ Exclusão em lote
 
-#### Frontend
+### Sistema de Categorias
+- ✅ Criar, listar, editar e excluir categorias
+- ✅ Busca de categorias
+- ✅ Validação de produtos vinculados antes de excluir
+- ✅ Associação de produtos a categorias
 
-```bash
-cd frontend
+### Dashboard
+- ✅ Total de produtos cadastrados
+- ✅ Valor total do estoque
+- ✅ Total de categorias
+- ✅ Lista de produtos com estoque baixo (< 10 unidades)
+- ✅ Gráfico de distribuição de produtos por categoria
+- ✅ Atualização automática de dados
 
-# Instalar dependências
-npm install
+### Sistema de Autenticação e Autorização
+- ✅ Integração completa com Keycloak
+- ✅ Login via OAuth2/OpenID Connect
+- ✅ Proteção de rotas no frontend
+- ✅ Autorização baseada em roles (Admin, Editor, Leitor)
+- ✅ Logout integrado
+- ✅ Refresh automático de tokens
+- ✅ Gerenciamento de usuários e roles (Admin)
 
-# Executar em modo desenvolvimento
-npm run dev
-```
+### Performance e Otimização
+- ✅ Cache com React Query
+- ✅ Paginação no backend e frontend
+- ✅ Queries otimizadas no MongoDB
+- ✅ Lazy loading de componentes
+- ✅ Code splitting automático (Next.js)
 
-### Executando Testes
-
-> **Nota**: A estrutura de testes está configurada, mas os testes ainda serão implementados durante o desenvolvimento.
-
-#### Backend
-
-```bash
-cd backend
-dotnet test
-```
-
-#### Frontend
-
-```bash
-cd frontend
-npm test
-```
+### Segurança
+- ✅ Validação em múltiplas camadas
+- ✅ Rate limiting
+- ✅ CORS configurado
+- ✅ Headers de segurança
+- ✅ Sanitização de entradas
+- ✅ JWT tokens validados
+- ✅ Variáveis de ambiente configuráveis via `.env` (não commitado)
+- ✅ Valores padrão seguros para desenvolvimento
 
 ## 📁 Estrutura do Projeto
 
@@ -133,49 +166,76 @@ nexus/
 │   │   │   ├── Handlers/
 │   │   │   ├── DTOs/
 │   │   │   └── Validators/
-│   │   ├── Nexus.Infrastructure/  # Camada de Infraestrutura
+│   │   ├── Nexus.Infrastructure/ # Camada de Infraestrutura
 │   │   │   ├── Data/
 │   │   │   ├── Repositories/
+│   │   │   ├── Services/
 │   │   │   └── Configurations/
 │   │   └── Nexus.API/             # Camada de Apresentação
 │   │       ├── Controllers/
 │   │       ├── Middlewares/
 │   │       └── Extensions/
-│   └── Nexus.sln
+│   └── README.md
 ├── frontend/
 │   ├── src/
 │   │   ├── app/                   # App Router (Next.js 14)
+│   │   │   ├── auth/              # Páginas de autenticação
+│   │   │   ├── dashboard/        # Dashboard
+│   │   │   ├── products/         # Gestão de produtos
+│   │   │   ├── categories/       # Gestão de categorias
+│   │   │   └── settings/         # Configurações
 │   │   ├── components/            # Componentes reutilizáveis
-│   │   │   ├── ui/                # Shadcn/ui components
-│   │   │   ├── forms/
-│   │   │   └── layout/
-│   │   ├── hooks/                 # Custom hooks
+│   │   │   ├── ui/               # Shadcn/ui components
+│   │   │   ├── charts/            # Componentes de gráficos
+│   │   │   └── layout/           # Componentes de layout
+│   │   ├── hooks/                 # Custom hooks (React Query)
 │   │   ├── services/              # Serviços de API
-│   │   ├── types/                 # Definições de tipos
-│   │   └── lib/                   # Utilitários
-│   ├── public/
-│   └── package.json
+│   │   ├── types/                 # Definições TypeScript
+│   │   └── lib/                   # Utilitários e validações
+│   └── README.md
+├── keycloak/
+│   └── nexus-realm.json           # Configuração do realm Keycloak
 ├── nginx/
 │   └── nginx.conf                 # Configuração do Nginx
 ├── docker-compose.yml
-├── .env.example
+├── .env.example          # Template de variáveis de ambiente (pode ser commitado)
+├── .env                  # Arquivo local de variáveis (NÃO commitado - opcional)
 └── README.md
 ```
 
 ## 🔐 Autenticação (Keycloak)
 
-O sistema utiliza **Keycloak** para autenticação e autorização. 
+O sistema utiliza **Keycloak** para autenticação e autorização. O realm `nexus` é importado automaticamente ao iniciar o container.
 
-### Configuração Inicial do Keycloak
+### Roles Disponíveis
 
-1. Acesse http://localhost:8080
-2. Faça login com:
-   - Usuário: `admin`
-   - Senha: `admin`
-3. Crie um novo Realm chamado `nexus`
-4. Crie um Client chamado `nexus-frontend`
-5. Configure as URLs de redirecionamento
-6. Crie roles conforme necessário (Admin, Manager, User)
+- **admin**: Acesso total ao sistema, incluindo gerenciamento de usuários
+- **editor**: Pode criar, editar e excluir produtos e categorias
+- **leitor**: Apenas visualização de dados
+
+### Configuração Automática
+
+O Keycloak é configurado automaticamente via `keycloak/nexus-realm.json` com:
+- Realm `nexus` pré-configurado
+- Client `nexus-frontend` configurado
+- Usuários de teste pré-criados
+- Roles configuradas
+
+## 🧪 Testes
+
+### Backend
+
+```bash
+cd backend
+dotnet test
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm test
+```
 
 ## 📝 Padrões de Commit
 
@@ -192,18 +252,6 @@ style(frontend): apply consistent spacing in components
 chore(deps): update dependencies to latest versions
 ```
 
-### Tipos de Commit
-
-- `feat`: Nova funcionalidade
-- `fix`: Correção de bug
-- `docs`: Documentação
-- `style`: Formatação, ponto e vírgula, etc
-- `refactor`: Refatoração de código
-- `test`: Adição ou correção de testes
-- `chore`: Tarefas de manutenção
-- `perf`: Melhorias de performance
-- `build`: Build e dependências
-
 ## 🏗️ Arquitetura
 
 O projeto segue os princípios de **Clean Architecture** com separação clara de responsabilidades:
@@ -213,36 +261,108 @@ O projeto segue os princípios de **Clean Architecture** com separação clara d
 3. **Infrastructure**: Implementação de Repositórios, Configurações de Banco de Dados e Serviços Externos
 4. **API**: Controllers, Middlewares, Configurações de DI e Startup
 
-## ✅ Status do Projeto
+### Frontend - Arquitetura Modular
 
-**Fase Atual**: Setup inicial concluído - Estrutura base criada
+- **App Router**: Next.js 14 com roteamento baseado em arquivos
+- **React Query**: Gerenciamento de estado servidor e cache
+- **Componentes**: Arquitetura modular e reutilizável
+- **Hooks Customizados**: Lógica de negócio reutilizável
 
-### O que já está implementado:
-- ✅ Estrutura de Clean Architecture no backend (.NET 9)
-- ✅ Estrutura base do frontend (Next.js 14)
-- ✅ Configuração do Docker Compose com todos os serviços
-- ✅ Entidades de domínio (Product, Category, Money)
-- ✅ Repositórios base implementados (MongoDB)
-- ✅ Configuração de Swagger/OpenAPI
-- ✅ Health checks e logging estruturado (Serilog)
-- ✅ Componentes base do UI (Shadcn/ui)
-- ✅ Configuração de testes (xUnit + Vitest)
+## 🐳 Docker
 
-### 🚧 Em Desenvolvimento
+### Serviços Incluídos
 
-- ⏳ Implementação de Commands e Queries (CQRS)
-- ⏳ Handlers do MediatR
-- ⏳ DTOs e Mappers
-- ⏳ Validações com FluentValidation
-- ⏳ Controllers da API
-- ⏳ Integração com Keycloak
-- ⏳ Interface do frontend
-- ⏳ Testes automatizados
+- **mongodb**: Banco de dados principal
+- **mongo-express**: Interface web para MongoDB
+- **keycloak**: Servidor de autenticação
+- **keycloak-db**: Banco PostgreSQL para Keycloak
+- **redis**: Cache e sessões
+- **api**: Backend .NET 9
+- **frontend**: Frontend Next.js 14
+- **nginx**: Reverse proxy
+
+### Comandos Úteis
+
+```bash
+# Iniciar todos os serviços
+docker-compose up -d
+
+# Parar todos os serviços
+docker-compose down
+
+# Ver logs
+docker-compose logs -f
+
+# Rebuild após mudanças
+docker-compose up -d --build
+
+# Parar e remover volumes
+docker-compose down -v
+```
+
+## 📚 Documentação da API
+
+A documentação completa da API está disponível via Swagger:
+
+- **Swagger UI**: http://localhost:5000/swagger
+
+A API inclui:
+- Documentação de todos os endpoints
+- Schemas de requisição e resposta
+- Exemplos de uso
+- Autenticação via Keycloak
+
+## 🎯 Entregáveis
+
+### ✅ Código Fonte
+- ✅ Repositório GitHub com código completo
+- ✅ README detalhado
+- ✅ Docker Compose funcional
+- ✅ Estrutura de testes configurada
+
+### ✅ Aplicação Funcionando
+- ✅ Todos os serviços rodando via Docker Compose
+- ✅ Interface funcional e responsiva
+- ✅ Autenticação e autorização funcionando
+- ✅ Todas as funcionalidades implementadas
+
+### ✅ Documentação
+- ✅ API documentada com Swagger
+- ✅ Guia de instalação e execução completo
+- ✅ READMEs atualizados para cada módulo
+- ✅ Comentários no código
+
+## 🚀 Desenvolvimento Local
+
+### Backend
+
+```bash
+cd backend
+
+# Restaurar dependências
+dotnet restore
+
+# Executar a API
+cd src/Nexus.API
+dotnet run
+```
+
+### Frontend
+
+```bash
+cd frontend
+
+# Instalar dependências
+npm install
+
+# Executar em modo desenvolvimento
+npm run dev
+```
+
+> **Nota**: Para desenvolvimento local, certifique-se de que os serviços (MongoDB, Keycloak, Redis) estejam rodando via Docker Compose.
 
 ## 📄 Licença
 
 Este projeto foi desenvolvido como parte de um desafio técnico.
 
-## 👨‍💻 Autor
 
-Desenvolvido seguindo as melhores práticas de desenvolvimento de software.
