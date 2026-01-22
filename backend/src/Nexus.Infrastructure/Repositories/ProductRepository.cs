@@ -93,4 +93,63 @@ public class ProductRepository : IProductRepository
         var products = await GetAllAsync(cancellationToken);
         return products.Sum(p => p.Price.Amount * p.StockQuantity);
     }
+
+    /// <summary>
+    /// Obtém produtos paginados diretamente do banco de dados (mais eficiente para grandes volumes)
+    /// </summary>
+    public async Task<(IEnumerable<Product> Items, int TotalCount)> GetPagedAsync(
+        int page, 
+        int pageSize, 
+        string? categoryId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var filterBuilder = Builders<Product>.Filter;
+        var filter = filterBuilder.Eq(p => p.IsDeleted, false);
+        
+        if (!string.IsNullOrEmpty(categoryId))
+        {
+            filter &= filterBuilder.Eq(p => p.CategoryId, categoryId);
+        }
+
+        // Executa contagem e busca em paralelo para melhor performance
+        var countTask = _collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+        var itemsTask = _collection
+            .Find(filter)
+            .SortByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+
+        await Task.WhenAll(countTask, itemsTask);
+
+        return (itemsTask.Result, (int)countTask.Result);
+    }
+
+    /// <summary>
+    /// Busca produtos por nome com paginação no banco de dados
+    /// </summary>
+    public async Task<(IEnumerable<Product> Items, int TotalCount)> SearchByNamePagedAsync(
+        string searchTerm, 
+        int page, 
+        int pageSize, 
+        CancellationToken cancellationToken = default)
+    {
+        var filter = Builders<Product>.Filter.Regex(
+            p => p.Name, 
+            new MongoDB.Bson.BsonRegularExpression(searchTerm, "i")
+        ) & Builders<Product>.Filter.Eq(p => p.IsDeleted, false);
+
+        // Executa contagem e busca em paralelo
+        var countTask = _collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+        var itemsTask = _collection
+            .Find(filter)
+            .SortByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+
+        await Task.WhenAll(countTask, itemsTask);
+
+        return (itemsTask.Result, (int)countTask.Result);
+    }
 }

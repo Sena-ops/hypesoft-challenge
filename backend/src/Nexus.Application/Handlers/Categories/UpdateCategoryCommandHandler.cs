@@ -1,7 +1,9 @@
 using AutoMapper;
 using MediatR;
 using Nexus.Application.Commands.Categories;
+using Nexus.Application.Common;
 using Nexus.Application.DTOs.Categories;
+using Nexus.Application.Interfaces;
 using Nexus.Domain.Repositories;
 
 namespace Nexus.Application.Handlers.Categories;
@@ -9,11 +11,16 @@ namespace Nexus.Application.Handlers.Categories;
 public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryCommand, CategoryDto>
 {
     private readonly ICategoryRepository _categoryRepository;
+    private readonly ICacheService _cacheService;
     private readonly IMapper _mapper;
 
-    public UpdateCategoryCommandHandler(ICategoryRepository categoryRepository, IMapper mapper)
+    public UpdateCategoryCommandHandler(
+        ICategoryRepository categoryRepository, 
+        ICacheService cacheService,
+        IMapper mapper)
     {
         _categoryRepository = categoryRepository;
+        _cacheService = cacheService;
         _mapper = mapper;
     }
 
@@ -30,6 +37,10 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
 
         // Salvar
         var updatedCategory = await _categoryRepository.UpdateAsync(category, cancellationToken);
+
+        // Invalidar cache
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.CategoriesPrefix, cancellationToken);
+        await _cacheService.RemoveByPrefixAsync(CacheKeys.DashboardPrefix, cancellationToken);
 
         return _mapper.Map<CategoryDto>(updatedCategory);
     }

@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Nexus.Application.Interfaces;
 using Nexus.Application.Interfaces.Auth;
 using Nexus.Domain.Repositories;
 using Nexus.Infrastructure.Auth;
+using Nexus.Infrastructure.Caching;
 using Nexus.Infrastructure.Data;
 using Nexus.Infrastructure.Repositories;
 
@@ -14,6 +16,13 @@ public static class DependencyInjection
     {
         // MongoDB
         services.AddSingleton<MongoDbContext>();
+        
+        // Configurar índices do MongoDB para otimização de queries
+        services.AddHostedService<MongoDbIndexInitializer>();
+        
+        // Cache - Memory Cache para consultas frequentes
+        services.AddMemoryCache();
+        services.AddSingleton<ICacheService, MemoryCacheService>();
         
         // Repositories
         services.AddScoped<IProductRepository, ProductRepository>();
