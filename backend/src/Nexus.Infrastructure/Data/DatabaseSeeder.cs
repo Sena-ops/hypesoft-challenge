@@ -29,8 +29,14 @@ public class DatabaseSeeder : IHostedService
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         // Só popula dados em ambiente de desenvolvimento ou se a variável de ambiente estiver configurada
+        var seedDatabaseEnv = Environment.GetEnvironmentVariable("SEED_DATABASE");
         var shouldSeed = _environment.IsDevelopment() || 
-                        Environment.GetEnvironmentVariable("SEED_DATABASE") == "true";
+                        seedDatabaseEnv == "true" || 
+                        seedDatabaseEnv == "True" ||
+                        seedDatabaseEnv == "1";
+
+        _logger.LogInformation("Verificando seed do banco de dados. Environment: {Environment}, IsDevelopment: {IsDevelopment}, SEED_DATABASE: {SeedDatabase}, ShouldSeed: {ShouldSeed}", 
+            _environment.EnvironmentName, _environment.IsDevelopment(), seedDatabaseEnv ?? "null", shouldSeed);
 
         if (!shouldSeed)
         {
@@ -42,22 +48,40 @@ public class DatabaseSeeder : IHostedService
 
         try
         {
-            // Aguarda um pouco para garantir que os índices foram criados
-            await Task.Delay(2000, cancellationToken);
+            // Aguarda um pouco para garantir que os índices foram criados e MongoDB está pronto
+            _logger.LogInformation("Aguardando 3 segundos para garantir que MongoDB está pronto...");
+            await Task.Delay(3000, cancellationToken);
 
             using var scope = _serviceProvider.CreateScope();
             var categoryRepository = scope.ServiceProvider.GetRequiredService<ICategoryRepository>();
             var productRepository = scope.ServiceProvider.GetRequiredService<IProductRepository>();
 
+            _logger.LogInformation("Verificando se já existem dados no banco...");
+            
             // Verifica se já existem dados
             var existingCategories = await categoryRepository.GetAllAsync(cancellationToken);
             var existingProducts = await productRepository.GetAllAsync(cancellationToken);
 
-            if (existingCategories.Any() || existingProducts.Any())
+            _logger.LogInformation("Categorias existentes: {CategoryCount}, Produtos existentes: {ProductCount}", 
+                existingCategories.Count(), existingProducts.Count());
+
+            // Verifica se deve forçar o seed mesmo com dados existentes
+            var forceSeed = Environment.GetEnvironmentVariable("FORCE_SEED") == "true" || 
+                           Environment.GetEnvironmentVariable("FORCE_SEED") == "True" ||
+                           Environment.GetEnvironmentVariable("FORCE_SEED") == "1";
+
+            if ((existingCategories.Any() || existingProducts.Any()) && !forceSeed)
             {
-                _logger.LogInformation("Banco de dados já possui dados. Seed não será executado.");
+                _logger.LogInformation("Banco de dados já possui dados. Seed não será executado. Configure FORCE_SEED=true para forçar.");
                 return;
             }
+
+            if (forceSeed && (existingCategories.Any() || existingProducts.Any()))
+            {
+                _logger.LogWarning("FORCE_SEED está ativado. Seed será executado mesmo com dados existentes.");
+            }
+
+            _logger.LogInformation("Banco de dados vazio. Iniciando população...");
 
             // Cria categorias de exemplo
             var categories = await SeedCategoriesAsync(categoryRepository, cancellationToken);
