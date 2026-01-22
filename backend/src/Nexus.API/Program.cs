@@ -1,5 +1,7 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Nexus.API.Extensions;
+using Nexus.API.Middlewares;
 using Nexus.Application.Extensions;
 using Nexus.Infrastructure.Configurations;
 using Serilog;
@@ -17,15 +19,12 @@ builder.Host.UseSerilog();
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new()
-    {
-        Title = "Nexus API",
-        Version = "v1",
-        Description = "API para Sistema de Gestão de Produtos - Nexus"
-    });
-});
+
+// Add Keycloak Authentication
+builder.Services.AddKeycloakAuthentication(builder.Configuration);
+
+// Add Swagger with JWT Authentication support
+builder.Services.AddSwaggerWithAuth(builder.Configuration);
 
 // Add Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -74,6 +73,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Security Headers - deve ser um dos primeiros middlewares
+app.UseSecurityHeaders();
+
+// Middleware de monitoramento de performance (primeiro para medir tempo total)
+app.UsePerformanceMonitoring(thresholdMs: 500);
+
 app.UseHttpsRedirection();
 
 app.UseCors();
@@ -82,6 +87,9 @@ app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Middleware de logging de autenticação/autorização
+app.UseAuthenticationLogging();
 
 app.MapControllers();
 

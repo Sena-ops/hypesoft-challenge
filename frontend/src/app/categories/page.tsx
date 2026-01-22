@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,21 +24,26 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ManagerOnly } from "@/components/auth";
 import { Plus, Search, Pencil, Trash2, Tags, RefreshCw } from "lucide-react";
 import { api } from "@/services/api";
 import { Category } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { usePermissions } from "@/hooks";
+import { useKeycloak } from "@/stores/KeycloakContext";
 
 export default function CategoriesPage() {
   const router = useRouter();
+  const permissions = usePermissions();
+  const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     setLoading(true);
     try {
       const response = await api.get<Category[]>("/categories");
@@ -49,7 +54,7 @@ export default function CategoriesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleDelete = async (id: string) => {
     setDeleteError(null);
@@ -67,8 +72,11 @@ export default function CategoriesPage() {
   };
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
+    if (!keycloakLoading && isAuthenticated) {
+      fetchCategories();
+    }
+  }, [keycloakLoading, isAuthenticated, fetchCategories]);
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -101,12 +109,14 @@ export default function CategoriesPage() {
               Gerencie as categorias de produtos
             </p>
           </div>
-          <Link href="/categories/new">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nova Categoria
-            </Button>
-          </Link>
+          <ManagerOnly>
+            <Link href="/categories/new">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nova Categoria
+              </Button>
+            </Link>
+          </ManagerOnly>
         </div>
 
         {deleteError && (
@@ -152,7 +162,7 @@ export default function CategoriesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {loading || keycloakLoading ? (
               <div className="flex items-center justify-center h-64">
                 <RefreshCw className="h-8 w-8 animate-spin text-primary" />
               </div>
@@ -195,39 +205,43 @@ export default function CategoriesPage() {
                       <TableCell>{formatDate(category.createdAt)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => router.push(`/categories/${category.id}/edit`)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir categoria</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir a categoria "{category.name}"?
-                                  Esta ação não pode ser desfeita. Não é possível excluir 
-                                  categorias que possuem produtos vinculados.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(category.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {permissions.canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => router.push(`/categories/${category.id}/edit`)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {permissions.canDelete && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Excluir categoria</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir a categoria &quot;{category.name}&quot;?
+                                    Esta ação não pode ser desfeita. Não é possível excluir 
+                                    categorias que possuem produtos vinculados.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(category.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

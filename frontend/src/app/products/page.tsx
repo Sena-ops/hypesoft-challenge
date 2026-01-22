@@ -32,14 +32,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ManagerOnly, AdminOnly } from "@/components/auth";
 import { Plus, Search, Pencil, Trash2, Package, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "@/services/api";
 import { Product, Category, PagedResult } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { usePermissions } from "@/hooks";
+import { useKeycloak } from "@/stores/KeycloakContext";
 
 export default function ProductsPage() {
   const router = useRouter();
+  const permissions = usePermissions();
+  const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,16 +75,16 @@ export default function ProductsPage() {
     }
   }, [page, selectedCategory]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await api.get<Category[]>("/categories");
       setCategories(response.data);
     } catch (error) {
       console.error("Erro ao carregar categorias:", error);
     }
-  };
+  }, []);
 
-  const searchProducts = async () => {
+  const searchProducts = useCallback(async () => {
     if (!searchTerm.trim()) {
       fetchProducts();
       return;
@@ -98,7 +103,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, page, pageSize, fetchProducts]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -110,16 +115,22 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
+    if (!keycloakLoading && isAuthenticated) {
+      fetchCategories();
+    }
+  }, [keycloakLoading, isAuthenticated, fetchCategories]);
 
   useEffect(() => {
-    if (searchTerm.trim()) {
-      searchProducts();
-    } else {
-      fetchProducts();
+    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar produtos
+    if (!keycloakLoading && isAuthenticated) {
+      if (searchTerm.trim()) {
+        searchProducts();
+      } else {
+        fetchProducts();
+      }
     }
-  }, [page, selectedCategory, fetchProducts]);
+  }, [page, selectedCategory, keycloakLoading, isAuthenticated, searchTerm, fetchProducts, searchProducts]);
 
   const getCategoryName = (categoryId: string) => {
     const category = categories.find((c) => c.id === categoryId);
@@ -158,12 +169,14 @@ export default function ProductsPage() {
               Gerencie os produtos do sistema
             </p>
           </div>
-          <Link href="/products/new">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Produto
-            </Button>
-          </Link>
+          <ManagerOnly>
+            <Link href="/products/new">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Produto
+              </Button>
+            </Link>
+          </ManagerOnly>
         </div>
 
         <Card>
@@ -219,7 +232,7 @@ export default function ProductsPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {loading || keycloakLoading ? (
               <div className="flex items-center justify-center h-64">
                 <RefreshCw className="h-8 w-8 animate-spin text-primary" />
               </div>
@@ -266,38 +279,42 @@ export default function ProductsPage() {
                         <TableCell>{getStockBadge(product.stockQuantity)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => router.push(`/products/${product.id}/edit`)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir produto</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir o produto "{product.name}"?
-                                    Esta ação não pode ser desfeita.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(product.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            {permissions.canEdit && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => router.push(`/products/${product.id}/edit`)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {permissions.canDelete && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir produto</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir o produto &quot;{product.name}&quot;?
+                                      Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(product.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

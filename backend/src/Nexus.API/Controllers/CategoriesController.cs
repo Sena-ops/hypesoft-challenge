@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nexus.Application.Commands.Categories;
 using Nexus.Application.DTOs.Categories;
@@ -6,6 +7,12 @@ using Nexus.Application.Queries.Categories;
 
 namespace Nexus.API.Controllers;
 
+/// <summary>
+/// Controller para gerenciamento de categorias.
+/// Requer autenticação para todos os endpoints.
+/// Operações de escrita (POST, PUT, DELETE) requerem role Manager ou Admin.
+/// </summary>
+[Authorize]
 public class CategoriesController : BaseController
 {
     private readonly IMediator _mediator;
@@ -35,8 +42,11 @@ public class CategoriesController : BaseController
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireManager")]
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Create([FromBody] CreateCategoryDto createCategoryDto)
     {
         try
@@ -52,8 +62,11 @@ public class CategoriesController : BaseController
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "RequireManager")]
     [ProducesResponseType(typeof(CategoryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(string id, [FromBody] UpdateCategoryDto updateCategoryDto)
     {
@@ -74,8 +87,11 @@ public class CategoriesController : BaseController
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "RequireAdmin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(string id)
     {

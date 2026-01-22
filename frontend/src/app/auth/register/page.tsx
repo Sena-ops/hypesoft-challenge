@@ -1,12 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/stores/AuthContext";
-import { api } from "@/services/api";
+import { useKeycloak } from "@/stores/KeycloakContext";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,135 +13,92 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Icons } from "@/components/ui/icons";
-
-const registerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type RegisterFormData = z.infer<typeof registerSchema>;
+import { LogIn, UserPlus, Shield } from "lucide-react";
 
 export default function RegisterPage() {
-  const { login } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { login, register, isAuthenticated, isLoading } = useKeycloak();
+  const router = useRouter();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
-  });
-
-  const onSubmit = async (data: RegisterFormData) => {
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const response = await api.post("/auth/register", {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-      });
-      const { token, ...user } = response.data;
-      login(token, user);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Something went wrong");
-    } finally {
-      setIsLoading(false);
+  // Redireciona para dashboard se já estiver autenticado
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/dashboard");
     }
-  };
+  }, [isLoading, isAuthenticated, router]);
+
+  // Mostra loading enquanto verifica autenticação
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+        <div className="flex flex-col items-center gap-4">
+          <Icons.spinner className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Verificando autenticação...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se já está autenticado, não renderiza (vai redirecionar)
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
+          <div className="flex justify-center mb-4">
+            <div className="rounded-full bg-primary/10 p-3">
+              <UserPlus className="h-8 w-8 text-primary" />
+            </div>
+          </div>
           <CardTitle className="text-2xl font-bold text-center">
-            Create an account
+            Criar uma conta
           </CardTitle>
           <CardDescription className="text-center">
-            Enter your email below to create your account
+            Registre-se para acessar o sistema Nexus
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                placeholder="John Doe"
-                {...register("name")}
-              />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name.message}</p>
-              )}
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground text-center">
+            Crie sua conta para começar a gerenciar seus produtos e categorias.
+          </p>
+          
+          <Button 
+            className="w-full gap-2" 
+            size="lg"
+            onClick={register}
+          >
+            <UserPlus className="h-4 w-4" />
+            Criar conta com Keycloak
+          </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                {...register("email")}
-              />
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
-              )}
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                ou
+              </span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                {...register("password")}
-              />
-              {errors.password && (
-                <p className="text-sm text-red-500">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                {...register("confirmPassword")}
-              />
-              {errors.confirmPassword && (
-                <p className="text-sm text-red-500">
-                  {errors.confirmPassword.message}
-                </p>
-              )}
-            </div>
-            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-            <Button className="w-full" type="submit" disabled={isLoading}>
-              {isLoading && (
-                <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Create Account
-            </Button>
-          </form>
+          </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full gap-2"
+            size="lg"
+            onClick={login}
+          >
+            <LogIn className="h-4 w-4" />
+            Já tenho uma conta
+          </Button>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2 text-center">
-          <div className="text-sm text-gray-500">
-            Already have an account?{" "}
-            <Link
-              href="/auth/login"
-              className="font-medium text-primary hover:underline"
-            >
-              Sign in
-            </Link>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Ao criar uma conta, você concorda com nossos Termos de Serviço e Política de Privacidade.
+          </p>
         </CardFooter>
       </Card>
     </div>

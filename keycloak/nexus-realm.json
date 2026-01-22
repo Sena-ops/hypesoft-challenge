@@ -1,0 +1,220 @@
+{
+  "realm": "nexus",
+  "enabled": true,
+  "displayName": "Nexus",
+  "displayNameHtml": "<strong>Nexus</strong> - Sistema de Gestão de Produtos",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrador do sistema - acesso total",
+        "composite": false
+      },
+      {
+        "name": "manager",
+        "description": "Gerente - pode gerenciar produtos e categorias",
+        "composite": false
+      },
+      {
+        "name": "user",
+        "description": "Usuário comum - apenas visualização",
+        "composite": false
+      }
+    ],
+    "client": {
+      "nexus-frontend": [
+        {
+          "name": "admin",
+          "description": "Administrador do frontend"
+        },
+        {
+          "name": "manager",
+          "description": "Gerente do frontend"
+        },
+        {
+          "name": "user",
+          "description": "Usuário do frontend"
+        }
+      ],
+      "nexus-api": [
+        {
+          "name": "admin",
+          "description": "Administrador da API"
+        },
+        {
+          "name": "manager",
+          "description": "Gerente da API"
+        },
+        {
+          "name": "user",
+          "description": "Usuário da API"
+        }
+      ]
+    }
+  },
+  "defaultRoles": ["user"],
+  "clients": [
+    {
+      "clientId": "nexus-frontend",
+      "name": "Nexus Frontend",
+      "description": "Cliente público para o frontend Next.js",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "http://localhost:3000",
+      "adminUrl": "http://localhost:3000",
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "+"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    },
+    {
+      "clientId": "nexus-api",
+      "name": "Nexus API",
+      "description": "Cliente confidencial para a API .NET",
+      "enabled": true,
+      "publicClient": false,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "secret": "nexus-api-secret",
+      "rootUrl": "http://localhost:5000",
+      "baseUrl": "http://localhost:5000",
+      "redirectUris": [
+        "http://localhost:5000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5000",
+        "+"
+      ],
+      "protocol": "openid-connect",
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@nexus.local",
+      "firstName": "Admin",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin", "manager", "user"],
+      "clientRoles": {
+        "nexus-frontend": ["admin"],
+        "nexus-api": ["admin"]
+      }
+    },
+    {
+      "username": "manager",
+      "email": "manager@nexus.local",
+      "firstName": "Manager",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "manager123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["manager", "user"],
+      "clientRoles": {
+        "nexus-frontend": ["manager"],
+        "nexus-api": ["manager"]
+      }
+    },
+    {
+      "username": "user",
+      "email": "user@nexus.local",
+      "firstName": "Regular",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"],
+      "clientRoles": {
+        "nexus-frontend": ["user"],
+        "nexus-api": ["user"]
+      }
+    }
+  ],
+  "scopeMappings": [
+    {
+      "client": "nexus-frontend",
+      "roles": ["admin", "manager", "user"]
+    },
+    {
+      "client": "nexus-api",
+      "roles": ["admin", "manager", "user"]
+    }
+  ]
+}

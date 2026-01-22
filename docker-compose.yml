@@ -52,7 +52,9 @@ services:
       KC_HOSTNAME_STRICT_HTTPS: false
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
-    command: start-dev
+    volumes:
+      - ./keycloak/nexus-realm.json:/opt/keycloak/data/import/nexus-realm.json:ro
+    command: start-dev --import-realm
     depends_on:
       - keycloak-db
     networks:
@@ -81,6 +83,23 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build:
       context: ./backend
@@ -92,6 +111,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__MongoDB: mongodb://mongodb:27017
+      ConnectionStrings__Redis: redis:6379
       MongoDB__DatabaseName: nexus
       Cors__AllowedOrigins: http://localhost:3000
       Keycloak__Authority: http://keycloak:8080/realms/nexus
@@ -100,6 +120,8 @@ services:
       mongodb:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - nexus-network
@@ -147,6 +169,7 @@ services:
 volumes:
   mongodb_data:
   keycloak_db_data:
+  redis_data:
 
 networks:
   nexus-network:
