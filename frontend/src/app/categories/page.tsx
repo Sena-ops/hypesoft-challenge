@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,17 +31,19 @@ import { Category } from "@/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePermissions } from "@/hooks";
+import { useKeycloak } from "@/stores/KeycloakContext";
 
 export default function CategoriesPage() {
   const router = useRouter();
   const permissions = usePermissions();
+  const { isAuthenticated, isLoading: keycloakLoading } = useKeycloak();
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     setLoading(true);
     try {
       const response = await api.get<Category[]>("/categories");
@@ -52,7 +54,7 @@ export default function CategoriesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleDelete = async (id: string) => {
     setDeleteError(null);
@@ -70,8 +72,11 @@ export default function CategoriesPage() {
   };
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    // Aguarda o Keycloak estar inicializado e autenticado antes de buscar dados
+    if (!keycloakLoading && isAuthenticated) {
+      fetchCategories();
+    }
+  }, [keycloakLoading, isAuthenticated, fetchCategories]);
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -157,7 +162,7 @@ export default function CategoriesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {loading || keycloakLoading ? (
               <div className="flex items-center justify-center h-64">
                 <RefreshCw className="h-8 w-8 animate-spin text-primary" />
               </div>

@@ -7,6 +7,7 @@ using Nexus.Infrastructure.Auth;
 using Nexus.Infrastructure.Caching;
 using Nexus.Infrastructure.Data;
 using Nexus.Infrastructure.Repositories;
+using StackExchange.Redis;
 
 namespace Nexus.Infrastructure.Configurations;
 
@@ -20,9 +21,25 @@ public static class DependencyInjection
         // Configurar índices do MongoDB para otimização de queries
         services.AddHostedService<MongoDbIndexInitializer>();
         
-        // Cache - Memory Cache para consultas frequentes
-        services.AddMemoryCache();
-        services.AddSingleton<ICacheService, MemoryCacheService>();
+        // Redis Cache - Distribuído para escalabilidade horizontal
+        var redisConnectionString = configuration.GetConnectionString("Redis") 
+            ?? configuration["Redis:ConnectionString"] 
+            ?? "localhost:6379";
+        
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnectionString;
+            options.InstanceName = "Nexus:";
+        });
+
+        // Registrar IConnectionMultiplexer para operações avançadas (ex: RemoveByPrefix)
+        services.AddSingleton<IConnectionMultiplexer>(sp =>
+        {
+            return ConnectionMultiplexer.Connect(redisConnectionString);
+        });
+
+        // Cache Service usando Redis
+        services.AddSingleton<ICacheService, RedisCacheService>();
         
         // Repositories
         services.AddScoped<IProductRepository, ProductRepository>();
