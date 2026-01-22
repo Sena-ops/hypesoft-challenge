@@ -227,6 +227,8 @@ O Keycloak é configurado automaticamente via `keycloak/nexus-realm.json` com:
 
 ```bash
 cd backend
+cd src
+cd Nexus.API
 dotnet test
 ```
 
