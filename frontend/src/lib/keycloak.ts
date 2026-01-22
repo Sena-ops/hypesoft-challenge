@@ -77,7 +77,7 @@ export const parseKeycloakUser = (keycloak: Keycloak): KeycloakUser | null => {
   const realmRoles = tokenParsed.realm_access?.roles || [];
   const clientRoles =
     tokenParsed.resource_access?.[keycloakConfig.clientId]?.roles || [];
-  const allRoles = [...new Set([...realmRoles, ...clientRoles])];
+  const allRoles = Array.from(new Set([...realmRoles, ...clientRoles]));
 
   return {
     id: tokenParsed.sub || "",
