@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { redirect } from "next/navigation";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth } from "@/stores/AuthContext";
 import { cn } from "@/lib/utils";
 import { LayoutDashboard, Package, Users, FileText, MessageSquare, Settings, HelpCircle, LogOut } from "lucide-react";
 import Link from "next/link";

@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { SalesChart } from "@/components/dashboard/SalesChart";
 import { LowStockList } from "@/components/dashboard/LowStockList";
 import { TopProducts } from "@/components/dashboard/TopProducts";
 import { LatestTransactions } from "@/components/dashboard/LatestTransactions";
-import { CustomersCountries } from "@/components/dashboard/CustomersCountries";
+import { SalesChart, CustomersCountries } from "@/components/charts";
 import { Package, DollarSign, AlertTriangle, Filter, Users } from "lucide-react";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/button";

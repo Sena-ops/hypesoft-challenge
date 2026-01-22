@@ -1,4 +1,4 @@
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/stores/AuthContext";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
