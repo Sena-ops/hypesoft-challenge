@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useKeycloak } from "@/stores/KeycloakContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
@@ -11,7 +13,15 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProps) {
-  const { isAuthenticated, isLoading, login, hasAnyRole, user } = useKeycloak();
+  const { isAuthenticated, isLoading, hasAnyRole, user } = useKeycloak();
+  const router = useRouter();
+
+  // Redireciona para página de login se não autenticado
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push("/auth/login");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   // Mostra loading enquanto verifica autenticação
   if (isLoading) {
@@ -25,12 +35,8 @@ export function DashboardLayout({ children, requiredRoles }: DashboardLayoutProp
     );
   }
 
-  // Se não está autenticado, redireciona para login
+  // Se não está autenticado, mostra loading enquanto redireciona
   if (!isAuthenticated) {
-    // Usa setTimeout para evitar problemas com SSR
-    if (typeof window !== "undefined") {
-      login();
-    }
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50/50 dark:bg-gray-900/50">
         <div className="flex flex-col items-center gap-4">

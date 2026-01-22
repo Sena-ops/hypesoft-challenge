@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useKeycloak } from "@/stores/KeycloakContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,10 +13,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Icons } from "@/components/ui/icons";
-import { LogIn, UserPlus, Shield } from "lucide-react";
+import { LogIn, UserPlus, Shield, AlertTriangle } from "lucide-react";
 
 export default function LoginPage() {
-  const { login, register, isAuthenticated, isLoading } = useKeycloak();
+  const { login, register, isAuthenticated, isLoading, isKeycloakAvailable } = useKeycloak();
   const router = useRouter();
 
   // Redireciona para dashboard se já estiver autenticado
@@ -61,6 +60,16 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!isKeycloakAvailable && (
+            <div className="flex items-center gap-2 p-3 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 rounded-md text-sm">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <p>
+                Servidor de autenticação (Keycloak) não está disponível. 
+                Verifique se o Keycloak está rodando em <code className="bg-amber-200 dark:bg-amber-800 px-1 rounded">localhost:8080</code>
+              </p>
+            </div>
+          )}
+          
           <p className="text-sm text-muted-foreground text-center">
             Faça login com sua conta para acessar o sistema de gestão de produtos.
           </p>
@@ -69,6 +78,7 @@ export default function LoginPage() {
             className="w-full gap-2" 
             size="lg"
             onClick={login}
+            disabled={!isKeycloakAvailable}
           >
             <LogIn className="h-4 w-4" />
             Entrar com Keycloak
@@ -90,6 +100,7 @@ export default function LoginPage() {
             className="w-full gap-2"
             size="lg"
             onClick={register}
+            disabled={!isKeycloakAvailable}
           >
             <UserPlus className="h-4 w-4" />
             Criar nova conta
@@ -99,6 +110,11 @@ export default function LoginPage() {
           <p className="text-xs text-muted-foreground">
             Ao continuar, você concorda com nossos Termos de Serviço e Política de Privacidade.
           </p>
+          {!isKeycloakAvailable && (
+            <p className="text-xs text-muted-foreground">
+              Para iniciar o Keycloak, execute: <code className="bg-muted px-1 rounded">docker-compose up keycloak -d</code>
+            </p>
+          )}
         </CardFooter>
       </Card>
     </div>

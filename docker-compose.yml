@@ -52,7 +52,9 @@ services:
       KC_HOSTNAME_STRICT_HTTPS: false
       KC_HTTP_ENABLED: true
       KC_HEALTH_ENABLED: true
-    command: start-dev
+    volumes:
+      - ./keycloak/nexus-realm.json:/opt/keycloak/data/import/nexus-realm.json:ro
+    command: start-dev --import-realm
     depends_on:
       - keycloak-db
     networks:

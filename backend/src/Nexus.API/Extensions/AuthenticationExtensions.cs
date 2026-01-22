@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -34,12 +35,14 @@ public static class AuthenticationExtensions
                 ValidateIssuer = true,
                 ValidIssuer = authority,
                 ValidateAudience = true,
-                ValidAudiences = new[] { audience, "account" },
+                // Aceita tokens tanto do frontend quanto da API e account
+                ValidAudiences = new[] { audience, "nexus-frontend", "account" },
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
                 ClockSkew = TimeSpan.FromMinutes(1),
                 NameClaimType = "preferred_username",
-                RoleClaimType = "roles"
+                // Usar ClaimTypes.Role para que RequireRole funcione corretamente
+                RoleClaimType = System.Security.Claims.ClaimTypes.Role
             };
 
             // Mapeamento de claims do Keycloak para o formato .NET
@@ -157,13 +160,29 @@ public static class AuthenticationExtensions
     /// </summary>
     private static void MapKeycloakRolesToClaims(TokenValidatedContext context)
     {
+        var logger = context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RoleMapping");
+
         if (context.Principal?.Identity is not System.Security.Claims.ClaimsIdentity claimsIdentity)
+        {
+            logger.LogWarning("ClaimsIdentity não encontrada");
             return;
+        }
+
+        logger.LogInformation("Iniciando mapeamento de roles do Keycloak");
+        
+        // Log de todas as claims disponíveis
+        foreach (var claim in context.Principal.Claims)
+        {
+            logger.LogDebug("Claim: {Type} = {Value}", claim.Type, claim.Value.Length > 100 ? claim.Value[..100] + "..." : claim.Value);
+        }
 
         // Extrai roles do realm_access
         var realmAccessClaim = context.Principal.FindFirst("realm_access");
         if (realmAccessClaim != null)
         {
+            logger.LogInformation("realm_access encontrado: {Value}", realmAccessClaim.Value);
             try
             {
                 var realmAccess = System.Text.Json.JsonDocument.Parse(realmAccessClaim.Value);
@@ -172,25 +191,33 @@ public static class AuthenticationExtensions
                     foreach (var role in roles.EnumerateArray())
                     {
                         var roleValue = role.GetString();
-                        if (!string.IsNullOrEmpty(roleValue) && 
-                            !claimsIdentity.HasClaim(System.Security.Claims.ClaimTypes.Role, roleValue))
+                        if (!string.IsNullOrEmpty(roleValue))
                         {
-                            claimsIdentity.AddClaim(new System.Security.Claims.Claim(
-                                System.Security.Claims.ClaimTypes.Role, roleValue));
+                            logger.LogInformation("Adicionando realm role: {Role}", roleValue);
+                            if (!claimsIdentity.HasClaim(System.Security.Claims.ClaimTypes.Role, roleValue))
+                            {
+                                claimsIdentity.AddClaim(new System.Security.Claims.Claim(
+                                    System.Security.Claims.ClaimTypes.Role, roleValue));
+                            }
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignora erro de parsing
+                logger.LogError(ex, "Erro ao parsear realm_access");
             }
+        }
+        else
+        {
+            logger.LogWarning("realm_access não encontrado no token");
         }
 
         // Extrai roles do resource_access (client-specific roles)
         var resourceAccessClaim = context.Principal.FindFirst("resource_access");
         if (resourceAccessClaim != null)
         {
+            logger.LogInformation("resource_access encontrado: {Value}", resourceAccessClaim.Value);
             try
             {
                 var resourceAccess = System.Text.Json.JsonDocument.Parse(resourceAccessClaim.Value);
@@ -201,20 +228,34 @@ public static class AuthenticationExtensions
                         foreach (var role in clientRoles.EnumerateArray())
                         {
                             var roleValue = role.GetString();
-                            if (!string.IsNullOrEmpty(roleValue) && 
-                                !claimsIdentity.HasClaim(System.Security.Claims.ClaimTypes.Role, roleValue))
+                            if (!string.IsNullOrEmpty(roleValue))
                             {
-                                claimsIdentity.AddClaim(new System.Security.Claims.Claim(
-                                    System.Security.Claims.ClaimTypes.Role, roleValue));
+                                logger.LogInformation("Adicionando client role ({Client}): {Role}", client.Name, roleValue);
+                                if (!claimsIdentity.HasClaim(System.Security.Claims.ClaimTypes.Role, roleValue))
+                                {
+                                    claimsIdentity.AddClaim(new System.Security.Claims.Claim(
+                                        System.Security.Claims.ClaimTypes.Role, roleValue));
+                                }
                             }
                         }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignora erro de parsing
+                logger.LogError(ex, "Erro ao parsear resource_access");
             }
         }
+        else
+        {
+            logger.LogWarning("resource_access não encontrado no token");
+        }
+
+        // Log das roles finais
+        var finalRoles = claimsIdentity.Claims
+            .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+            .Select(c => c.Value)
+            .ToList();
+        logger.LogInformation("Roles finais mapeadas: {Roles}", string.Join(", ", finalRoles));
     }
 }

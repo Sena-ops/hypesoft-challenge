@@ -34,15 +34,13 @@ export const getKeycloakInstance = (): Keycloak => {
 
 /**
  * Opções de inicialização do Keycloak
+ * Nota: silentCheckSsoRedirectUri removido para evitar problemas de inicialização
  */
 export const keycloakInitOptions: Keycloak.KeycloakInitOptions = {
   onLoad: "check-sso",
-  silentCheckSsoRedirectUri:
-    typeof window !== "undefined"
-      ? `${window.location.origin}/silent-check-sso.html`
-      : undefined,
   pkceMethod: "S256",
   checkLoginIframe: false,
+  enableLogging: true,
 };
 
 /**

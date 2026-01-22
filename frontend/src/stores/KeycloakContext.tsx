@@ -19,6 +19,39 @@ import {
   KeycloakUser,
 } from "@/lib/keycloak";
 
+// Timeout para inicialização do Keycloak (10 segundos)
+const KEYCLOAK_INIT_TIMEOUT = 10000;
+// Timeout para health check (3 segundos)
+const KEYCLOAK_HEALTH_CHECK_TIMEOUT = 3000;
+
+/**
+ * Verifica se o Keycloak está acessível
+ */
+const checkKeycloakHealth = async (): Promise<boolean> => {
+  const keycloakUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || "http://localhost:8080";
+  const realm = process.env.NEXT_PUBLIC_KEYCLOAK_REALM || "nexus";
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), KEYCLOAK_HEALTH_CHECK_TIMEOUT);
+    
+    // Tenta acessar a configuração do realm
+    const response = await fetch(
+      `${keycloakUrl}/realms/${realm}/.well-known/openid-configuration`,
+      { 
+        signal: controller.signal,
+        mode: 'cors',
+      }
+    );
+    
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    console.warn("Keycloak health check failed:", error);
+    return false;
+  }
+};
+
 /**
  * Interface do contexto de autenticação Keycloak
  */
@@ -27,6 +60,7 @@ interface KeycloakContextType {
   user: KeycloakUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isKeycloakAvailable: boolean;
   token: string | null;
   login: () => void;
   logout: () => void;
@@ -41,6 +75,7 @@ const KeycloakContext = createContext<KeycloakContextType>({
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  isKeycloakAvailable: false,
   token: null,
   login: () => {},
   logout: () => {},
@@ -67,6 +102,7 @@ export const KeycloakProvider = ({
   const [keycloak, setKeycloak] = useState<Keycloak | null>(null);
   const [user, setUser] = useState<KeycloakUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isKeycloakAvailable, setIsKeycloakAvailable] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const initialized = useRef(false);
   const router = useRouter();
@@ -79,10 +115,23 @@ export const KeycloakProvider = ({
 
     const initKeycloak = async () => {
       try {
+        // Primeiro verifica se o Keycloak está acessível
+        console.log("Verificando disponibilidade do Keycloak...");
+        const isHealthy = await checkKeycloakHealth();
+        
+        if (!isHealthy) {
+          console.warn("Keycloak não está disponível");
+          setIsKeycloakAvailable(false);
+          setIsLoading(false);
+          return;
+        }
+
+        console.log("Keycloak disponível, inicializando...");
         const keycloakInstance = getKeycloakInstance();
 
         // Configura callback de atualização de token
         keycloakInstance.onTokenExpired = () => {
+          console.log("Token expirado, atualizando...");
           keycloakInstance
             .updateToken(30)
             .then((refreshed) => {
@@ -99,30 +148,52 @@ export const KeycloakProvider = ({
 
         // Callback quando autenticação muda
         keycloakInstance.onAuthSuccess = () => {
+          console.log("Autenticação bem-sucedida!");
           const userData = parseKeycloakUser(keycloakInstance);
           setUser(userData);
           setToken(keycloakInstance.token || null);
         };
 
         keycloakInstance.onAuthLogout = () => {
+          console.log("Logout realizado");
           setUser(null);
           setToken(null);
         };
 
-        // Inicializa o Keycloak
-        const authenticated = await keycloakInstance.init(keycloakInitOptions);
+        keycloakInstance.onAuthError = (error) => {
+          console.error("Erro de autenticação:", error);
+        };
+
+        keycloakInstance.onAuthRefreshError = () => {
+          console.error("Erro ao atualizar autenticação");
+        };
+
+        // Inicializa o Keycloak com timeout
+        console.log("Iniciando Keycloak.init()...");
+        const initPromise = keycloakInstance.init(keycloakInitOptions);
+        const timeoutPromise = new Promise<boolean>((_, reject) => {
+          setTimeout(() => reject(new Error("Keycloak init timeout")), KEYCLOAK_INIT_TIMEOUT);
+        });
+
+        const authenticated = await Promise.race([initPromise, timeoutPromise]);
+        console.log("Keycloak.init() completado. Autenticado:", authenticated);
 
         setKeycloak(keycloakInstance);
+        setIsKeycloakAvailable(true);
 
         if (authenticated) {
+          console.log("Usuário autenticado, processando token...");
           const userData = parseKeycloakUser(keycloakInstance);
+          console.log("Dados do usuário:", userData);
           setUser(userData);
           setToken(keycloakInstance.token || null);
         }
 
         setIsLoading(false);
+        console.log("Inicialização completa. isLoading: false");
       } catch (error) {
         console.error("Erro ao inicializar Keycloak:", error);
+        setIsKeycloakAvailable(false);
         setIsLoading(false);
       }
     };
@@ -232,6 +303,7 @@ export const KeycloakProvider = ({
         user,
         isAuthenticated: !!keycloak?.authenticated,
         isLoading,
+        isKeycloakAvailable,
         token,
         login,
         logout,
