@@ -1,2 +1,2 @@
 // Custom hooks exports
-// Example: export { useDebounce } from "./useDebounce";
+export { useRequireAuth, useHasRole, usePermissions } from "./useRequireAuth";
