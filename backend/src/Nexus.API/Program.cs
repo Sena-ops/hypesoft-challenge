@@ -1,5 +1,6 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Nexus.API.Extensions;
 using Nexus.Application.Extensions;
 using Nexus.Infrastructure.Configurations;
 using Serilog;
@@ -17,15 +18,12 @@ builder.Host.UseSerilog();
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.SwaggerDoc("v1", new()
-    {
-        Title = "Nexus API",
-        Version = "v1",
-        Description = "API para Sistema de Gestão de Produtos - Nexus"
-    });
-});
+
+// Add Keycloak Authentication
+builder.Services.AddKeycloakAuthentication(builder.Configuration);
+
+// Add Swagger with JWT Authentication support
+builder.Services.AddSwaggerWithAuth(builder.Configuration);
 
 // Add Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
