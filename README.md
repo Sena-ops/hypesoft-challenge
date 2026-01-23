@@ -77,6 +77,11 @@ Após iniciar os containers, acesse:
 
 ### Credenciais Padrão
 
+#### Nexus Admin
+- **URL**: http://localhost:3000
+- **Usuário**: `admin`
+- **Senha**: `admin123`
+
 #### Keycloak Admin Console
 - **URL**: http://localhost:8080
 - **Usuário**: `admin`
