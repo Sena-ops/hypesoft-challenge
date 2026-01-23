@@ -55,6 +55,15 @@ public class KeycloakAdminService : IKeycloakAdminService
         // Garante que não tenha barra no final
         _keycloakUrl = _keycloakUrl.TrimEnd('/');
         
+        // Se estiver no Docker e a URL ainda for localhost, tenta corrigir
+        var isDockerContainer = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+        if (isDockerContainer && _keycloakUrl.Contains("localhost"))
+        {
+            _logger.LogWarning("Detectado Docker mas URL do Keycloak é localhost. Corrigindo para usar nome do serviço...");
+            _keycloakUrl = _keycloakUrl.Replace("localhost", "keycloak");
+            _logger.LogInformation("URL do Keycloak corrigida para: {Url}", _keycloakUrl);
+        }
+        
         _realm = _configuration["Keycloak:Realm"] ?? "nexus";
         _adminUsername = _configuration["Keycloak:AdminUsername"] ?? "admin";
         _adminPassword = _configuration["Keycloak:AdminPassword"] ?? "admin";

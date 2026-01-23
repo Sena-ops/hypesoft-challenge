@@ -119,7 +119,13 @@ services:
       MongoDB__DatabaseName: ${MONGODB_DATABASE_NAME:-nexus}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://keycloak:8080/realms/nexus}
+      Keycloak__AdminUrl: ${KEYCLOAK_ADMIN_URL:-http://keycloak:8080}
       Keycloak__Audience: ${KEYCLOAK_AUDIENCE:-nexus-api}
+      Keycloak__Realm: ${KEYCLOAK_REALM:-nexus}
+      Keycloak__AdminUsername: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      Keycloak__AdminPassword: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      Keycloak__AdminClientId: ${KEYCLOAK_ADMIN_CLIENT_ID:-nexus-api}
+      Keycloak__AdminClientSecret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-nexus-api-secret}
       SEED_DATABASE: ${SEED_DATABASE:-true}
     depends_on:
       mongodb:
